@@ -1,11 +1,11 @@
-name: 1. Build Installable Kotlin Android APK (Zero Laptop)
+name: 1. Build Signed Release Kotlin Android APK (Zero Laptop)
 on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
-  build_apk:
+  build_signed_release_apk:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -17,17 +17,27 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 8.5 (Matched with AGP 8.2.2)
+      - name: Generate RSA-2048 Release Keystore for Secure APK Signing
+        working-directory: ./android-kotlin-app/app
+        env:
+          KEYSTORE_PASS: ${{ secrets.MASTER_DECRYPTION_KEY || 'PulseForge2026Secure' }}
+        run: |
+          rm -f release-keystore.jks
+          keytool -genkeypair -v             -keystore release-keystore.jks             -alias pulseforge_key             -keyalg RSA             -keysize 2048             -validity 10000             -storepass "$KEYSTORE_PASS"             -keypass "$KEYSTORE_PASS"             -dname "CN=PulseForge Studio, OU=Media Automation, O=PulseForge, L=Jamnagar, ST=Gujarat, C=IN"
+
+      - name: Setup Gradle 8.5
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.5'
 
-      - name: Build Debug APK via Gradle
+      - name: Build Signed Release APK via Gradle
         working-directory: ./android-kotlin-app
-        run: gradle assembleDebug --stacktrace
+        env:
+          KEYSTORE_PASS: ${{ secrets.MASTER_DECRYPTION_KEY || 'PulseForge2026Secure' }}
+        run: gradle assembleRelease --stacktrace
 
-      - name: Upload Installable PulseForge-Studio.apk Artifact
+      - name: Upload Signed Release PulseForge-Studio-Pro.apk
         uses: actions/upload-artifact@v4
         with:
-          name: PulseForge-Studio-Android-APK
-          path: android-kotlin-app/app/build/outputs/apk/debug/*.apk
+          name: PulseForge-Studio-Signed-Release-APK
+          path: android-kotlin-app/app/build/outputs/apk/release/*.apk
