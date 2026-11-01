@@ -1,0 +1,31 @@
+name: 1. Build Installable Kotlin Android APK (Zero Laptop)
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build_apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Debug APK via Gradle
+        working-directory: ./android-kotlin-app
+        run: gradle assembleDebug
+
+      - name: Upload Installable PulseForge-Studio.apk Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PulseForge-Studio-Android-APK
+          path: android-kotlin-app/app/build/outputs/apk/debug/*.apk

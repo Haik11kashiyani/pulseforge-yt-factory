@@ -1,0 +1,73 @@
+name: 2. PulseForge Encrypted YouTube & PDF Factory
+on:
+  schedule:
+    - cron: '30 10 * * 1-5' # 4:00 PM IST India Post-Market Catch-Up
+    - cron: '30 21 * * 1-5' # 4:30 PM EST US Wall Street Catch-Up
+    - cron: '0 13 * * *'    # Daily Cricket/Football/Chat Story Slot
+  workflow_dispatch:
+    inputs:
+      channel_id:
+        description: 'Target Channel ID (CH-01 to CH-08)'
+        required: true
+        default: 'CH-01'
+      video_format:
+        description: '9:16, 16:9, or auto'
+        required: true
+        default: 'auto'
+      visual_theme:
+        description: 'claude_pdf, bloomberg_dark, apple_bento, chat_story, sports_arena'
+        required: true
+        default: 'claude_pdf'
+      voice_engine:
+        description: 'gemini_native, kokoro_82m, or edge_ava'
+        required: true
+        default: 'gemini_native'
+      data_mode:
+        description: 'auto_api or manual_json'
+        required: true
+        default: 'auto_api'
+      custom_topic:
+        description: 'Optional Custom Headline / Topic'
+        required: false
+        default: ''
+
+jobs:
+  decrypt_render_upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Checkout Public Repository
+        uses: actions/checkout@v4
+
+      - name: 2. Decrypt Engine Bundle in RAM (/dev/shm)
+        env:
+          MASTER_KEY: ${{ secrets.MASTER_DECRYPTION_KEY }}
+        run: |
+          mkdir -p /dev/shm/pulseforge
+          if [ -f "vault.enc" ] && [ -n "$MASTER_KEY" ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -in vault.enc -out /dev/shm/pulseforge/engine.tar.gz -pass env:MASTER_KEY
+            tar -xzf /dev/shm/pulseforge/engine.tar.gz -C /dev/shm/pulseforge
+          else
+            cp -r factory_engine/* /dev/shm/pulseforge/
+          fi
+
+      - name: 3. Install Python, Playwright Chromium & FFmpeg
+        run: |
+          pip install google-genai yfinance edge-tts playwright google-api-python-client google-auth-oauthlib
+          playwright install --with-deps chromium
+
+      - name: 4. Fetch Real Grounded Data + Gemini Script + Near-Human TTS
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python3 /dev/shm/pulseforge/generate_verified_script.py             --channel "${{ github.event.inputs.channel_id || 'CH-01' }}"             --format "${{ github.event.inputs.video_format || 'auto' }}"             --theme "${{ github.event.inputs.visual_theme || 'claude_pdf' }}"             --voice "${{ github.event.inputs.voice_engine || 'gemini_native' }}"             --topic "${{ github.event.inputs.custom_topic || '' }}"
+
+      - name: 5. Render 60FPS Tailwind+GSAP Video & Export Claude Daily PDF
+        run: |
+          python3 /dev/shm/pulseforge/render_gsap_video_and_pdf.py
+
+      - name: 6. Upload Video to YouTube & Wipe RAM
+        env:
+          YT_REFRESH_TOKEN_MAP: ${{ secrets.YT_REFRESH_TOKEN_MAP }}
+        run: |
+          python3 /dev/shm/pulseforge/upload_to_youtube.py
+          rm -rf /dev/shm/pulseforge
