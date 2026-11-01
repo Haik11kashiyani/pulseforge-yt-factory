@@ -3,6 +3,7 @@ package com.pulseforge.studio
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.SharedPreferences
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
@@ -19,32 +20,23 @@ import android.webkit.WebViewClient
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import java.nio.charset.StandardCharsets
+import org.json.JSONObject
 import java.security.SecureRandom
 import java.util.Locale
-import java.util.concurrent.Executors
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-/**
- * PulseForge Studio Pro v2.0 — Fully Dynamic Native Kotlin Controller
- * Features:
- * 1. Signed Release Build + App PIN Lock Screen
- * 2. Native Android Neural TextToSpeech (speaks Hinglish/English scripts aloud during 60FPS GSAP preview!)
- * 3. Live Gemini 2.5 Flash API Script & Data Generator inside the app
- * 4. Real-Time GitHub Actions Workflow Status Monitor & Trigger
- * 5. Two-Way Cloud Sync (To-Dos, Channel Configs, and Verified JSON synced to your GitHub repo)
- */
 class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
     private lateinit var webView: WebView
     private lateinit var statusBanner: TextView
     private var tts: TextToSpeech? = null
-    private var ttsReady = false
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private var ttsReady: Boolean = false
+    private val mainHandler: Handler = Handler(Looper.getMainLooper())
 
     @SuppressLint("SetJavaScriptEnabled")
+    @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -61,7 +53,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
 
         statusBanner = TextView(this).apply {
-            text = "🛡️ PulseForge Pro v2.0 (Signed Release) • Live GitHub + Gemini Sync Active"
+            text = "PulseForge Pro v2.1 (Signed Release) • Live Sync Ready"
             setBackgroundColor(Color.parseColor("#141413"))
             setTextColor(Color.parseColor("#10B981"))
             textSize = 11f
@@ -78,6 +70,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             )
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
+            settings.allowFileAccess = true
+            settings.allowContentAccess = true
+            settings.allowFileAccessFromFileURLs = true
+            settings.allowUniversalAccessFromFileURLs = true
             settings.cacheMode = WebSettings.LOAD_DEFAULT
             webChromeClient = WebChromeClient()
             webViewClient = WebViewClient()
@@ -86,19 +82,13 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         rootLayout.addView(webView)
         setContentView(rootLayout)
 
-        webView.loadDataWithBaseURL(
-            "https://api.github.com",
-            buildDynamicStudioAppHtml(prefs),
-            "text/html",
-            "UTF-8",
-            null
-        )
+        webView.loadUrl("file:///android_asset/studio.html")
     }
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             tts?.language = Locale("en", "IN")
-            tts?.setSpeechRate(1.03f)
+            tts?.setSpeechRate(1.02f)
             ttsReady = true
         }
     }
@@ -109,6 +99,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         super.onDestroy()
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (this::webView.isInitialized && webView.canGoBack()) {
             webView.goBack()
@@ -117,7 +108,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
     }
 
-    inner class NativeBridge(private val prefs: android.content.SharedPreferences) {
+    inner class NativeBridge(private val prefs: SharedPreferences) {
 
         @JavascriptInterface
         fun speakVoiceover(text: String, langCode: String) {
@@ -127,7 +118,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             } else {
                 tts?.language = Locale.US
             }
-            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "pf_vo_${System.currentTimeMillis()}")
+            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "pf_vo_id")
         }
 
         @JavascriptInterface
@@ -136,32 +127,40 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
 
         @JavascriptInterface
-        fun saveAllCredentials(repo: String, pat: String, geminiKey: String, aesKey: String, pinCode: String): String {
-            val cleanPat = if (pat.startsWith("Ghp_")) "ghp_" + pat.substring(4) else pat.trim()
+        fun saveAllCredentials(
+            repo: String,
+            pat: String,
+            geminiKey: String,
+            aesKey: String,
+            pinCode: String
+        ): String {
+            val trimmedPat = pat.trim()
+            val cleanPat = if (trimmedPat.startsWith("Ghp_")) {
+                "ghp_" + trimmedPat.substring(4)
+            } else {
+                trimmedPat
+            }
+            val safePin = if (pinCode.trim().isEmpty()) "2026" else pinCode.trim()
             prefs.edit()
                 .putString("gh_repo", repo.trim())
                 .putString("gh_pat", cleanPat)
                 .putString("gemini_key", geminiKey.trim())
                 .putString("aes_key", aesKey.trim())
-                .putString("app_pin", pinCode.trim().ifEmpty { "2026" })
+                .putString("app_pin", safePin)
                 .apply()
-            notifyNative("✓ Saved GitHub PAT, Gemini Key & PIN to Encrypted Android Storage")
+            notifyNative("Saved Vault & PIN to Encrypted Android Storage")
             return encryptAes256Gcm("PulseForge-Dynamic-Sync-v2", aesKey.trim())
         }
 
         @JavascriptInterface
         fun getSavedConfigJson(): String {
-            val repo = prefs.getString("gh_repo", "") ?: ""
-            val pat = prefs.getString("gh_pat", "") ?: ""
-            val gem = prefs.getString("gemini_key", "") ?: ""
-            val aes = prefs.getString("aes_key", "PF-2026-AES256-KEY") ?: "PF-2026-AES256-KEY"
-            val pin = prefs.getString("app_pin", "2026") ?: "2026"
-            return """{"repo":"$repo","pat":"$pat","geminiKey":"$gem","aesKey":"$aes","pin":"$pin"}"""
-        }
-
-        @JavascriptInterface
-        fun encryptPayloadNative(plainText: String, key: String): String {
-            return encryptAes256Gcm(plainText, key)
+            val obj = JSONObject()
+            obj.put("repo", prefs.getString("gh_repo", "") ?: "")
+            obj.put("pat", prefs.getString("gh_pat", "") ?: "")
+            obj.put("geminiKey", prefs.getString("gemini_key", "") ?: "")
+            obj.put("aesKey", prefs.getString("aes_key", "PF-2026-AES256-KEY") ?: "PF-2026-AES256-KEY")
+            obj.put("pin", prefs.getString("app_pin", "2026") ?: "2026")
+            return obj.toString()
         }
 
         @JavascriptInterface
@@ -175,588 +174,20 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
     private fun encryptAes256Gcm(plainText: String, passphrase: String): String {
         return try {
-            val keyBytes = passphrase.padEnd(32, '0').take(32).toByteArray(StandardCharsets.UTF_8)
+            val padded = passphrase.padEnd(32, '0').substring(0, 32)
+            val keyBytes = padded.toByteArray(Charsets.UTF_8)
             val secretKey = SecretKeySpec(keyBytes, "AES")
             val iv = ByteArray(12)
             SecureRandom().nextBytes(iv)
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, GCMParameterSpec(128, iv))
-            val encrypted = cipher.doFinal(plainText.toByteArray(StandardCharsets.UTF_8))
+            val encrypted = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
             val combined = ByteArray(iv.size + encrypted.size)
             System.arraycopy(iv, 0, combined, 0, iv.size)
             System.arraycopy(encrypted, 0, combined, iv.size, encrypted.size)
             Base64.encodeToString(combined, Base64.NO_WRAP)
         } catch (e: Exception) {
-            "ERR: ${e.message}"
+            "ERR"
         }
-    }
-
-    private fun buildDynamicStudioAppHtml(prefs: android.content.SharedPreferences): String {
-        val savedRepo = prefs.getString("gh_repo", "") ?: ""
-        val savedPat = prefs.getString("gh_pat", "") ?: ""
-        val savedGem = prefs.getString("gemini_key", "") ?: ""
-        val savedAes = prefs.getString("aes_key", "PF-2026-ULTRA-VAULT-99X") ?: "PF-2026-ULTRA-VAULT-99X"
-        val savedPin = prefs.getString("app_pin", "2026") ?: "2026"
-
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-          <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-          <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-          <style>
-            :root { --bg: #FAF8F5; --card: #FFFFFF; --sub: #F3EFEA; --txt: #141413; --muted: #5E5D59; --bdr: #E6E2DA; --acc: #D97757; }
-            body.dark { --bg: #0B0D11; --card: #131720; --sub: #1C2230; --txt: #F3F4F6; --muted: #9CA3AF; --bdr: #262E3F; --acc: #F97316; }
-            body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--txt); margin: 0; padding-bottom: 76px; }
-            .serif { font-family: 'Instrument Serif', Georgia, serif; }
-            .mono { font-family: 'JetBrains Mono', monospace; }
-            .card { background: var(--card); border: 1px solid var(--bdr); border-radius: 16px; }
-            .sub { background: var(--sub); border: 1px solid var(--bdr); border-radius: 12px; }
-          </style>
-        </head>
-        <body>
-          <!-- SECURITY PIN LOCK MODAL (OPTIONAL, UNLOCKS WITH 2026 OR SAVED PIN) -->
-          <div id="pinLockOverlay" class="fixed inset-0 z-50 flex items-center justify-center p-5" style="background: rgba(11,13,17,0.92); backdrop-filter: blur(8px);">
-            <div class="card p-6 w-full max-w-xs text-center space-y-4">
-              <div class="text-xs mono uppercase font-bold" style="color: var(--acc);">🔒 PulseForge Security Gate</div>
-              <h2 class="serif text-2xl">Enter Studio PIN</h2>
-              <p class="text-xs opacity-75">Protects your GitHub & YouTube tokens on your phone (Default PIN: <strong>2026</strong>)</p>
-              <input id="pinEntryInput" type="password" value="$savedPin" placeholder="Enter 4-digit PIN" class="w-full p-3 text-center mono text-lg sub focus:outline-none" />
-              <button onclick="unlockApp()" class="w-full py-3 rounded-xl text-xs font-bold text-white" style="background: var(--acc);">🔓 Unlock Dynamic Studio</button>
-            </div>
-          </div>
-
-          <!-- TOP HEADER -->
-          <header class="sticky top-0 z-30 card rounded-none border-t-0 border-x-0 px-4 py-3 flex items-center justify-between">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="serif text-xl font-bold">PulseForge Pro v2.0</span>
-                <span id="cloudSyncBadge" class="text-[10px] mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 font-bold">● Live Sync</span>
-              </div>
-              <p class="text-[11px] opacity-70">Dynamic Gemini API + GitHub Actions + Native Voice</p>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <button onclick="document.body.classList.toggle('dark')" class="px-2.5 py-1.5 text-xs sub">🌙/☀️</button>
-              <button onclick="syncWithGithubCloud()" class="px-2.5 py-1.5 text-xs font-bold text-white rounded-lg" style="background: var(--acc);">🔄 Sync</button>
-            </div>
-          </header>
-
-          <!-- MAIN CONTENT AREA -->
-          <main class="p-3.5 space-y-4">
-
-            <!-- TAB 0: DYNAMIC STUDIO & LIVE GEMINI GENERATOR -->
-            <section id="tabView-0" class="space-y-4">
-              <!-- Channel Switcher -->
-              <div class="card p-3.5 space-y-2.5">
-                <div class="flex items-center justify-between">
-                  <span class="text-[10px] mono font-bold uppercase" style="color: var(--acc);">1. Active Channel (8 Configured)</span>
-                  <span id="activeRegionBadge" class="text-[10px] mono px-2 py-0.5 rounded sub">🇮🇳 India Target</span>
-                </div>
-                <select id="chSelect" onchange="onChannelPick(this.value)" class="w-full p-2.5 text-xs font-semibold sub focus:outline-none">
-                  <option value="0">CH-01 • 🇮🇳 India Share Market & IPO Catch-Up</option>
-                  <option value="1">CH-02 • 🌍 Global & US Wall Street Catch-Up</option>
-                  <option value="2">CH-03 • 🇮🇳 Text Chat Stories — India (WhatsApp UI)</option>
-                  <option value="3">CH-04 • 🌍 Text Chat Stories — Global (iMessage UI)</option>
-                  <option value="4">CH-05 • 🏏 Cricket Viral Rankings & Stat Showdowns</option>
-                  <option value="5">CH-06 • ⚽ Football (Soccer) Global Stat Showdowns</option>
-                  <option value="6">CH-07 • 🏛️ Global Wealth & Empire Valuations</option>
-                  <option value="7">CH-08 • 🧠 Dark Psychology & Daily Brain Quiz</option>
-                </select>
-
-                <div class="grid grid-cols-2 gap-2">
-                  <div>
-                    <label class="text-[10px] mono opacity-70">Video Format</label>
-                    <select id="fmtSelect" onchange="renderDynamicStage()" class="w-full p-2 text-xs sub mt-0.5">
-                      <option value="auto">🧠 Auto-Pick (9:16/16:9)</option>
-                      <option value="9:16">📱 9:16 Short + PDF</option>
-                      <option value="16:9">🖥️ 16:9 Full + PDF</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="text-[10px] mono opacity-70">Swappable GSAP Theme</label>
-                    <select id="themeSelect" onchange="renderDynamicStage()" class="w-full p-2 text-xs sub mt-0.5">
-                      <option value="claude_pdf">📜 Claude Live PDF</option>
-                      <option value="bloomberg_dark">📈 Dark Terminal</option>
-                      <option value="apple_bento">✨ Apple Bento Grid</option>
-                      <option value="chat_story">💬 WhatsApp / iMessage</option>
-                      <option value="sports_arena">🏆 Sports Broadcast</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <!-- LIVE GEMINI AI DYNAMIC GENERATOR BAR -->
-              <div class="card p-3.5 space-y-2.5">
-                <div class="flex items-center justify-between">
-                  <span class="text-[10px] mono font-bold uppercase text-emerald-600">2. Dynamic Gemini 2.5 Script & Data Generator</span>
-                  <span class="text-[10px] mono opacity-70">Real-Time API</span>
-                </div>
-                <input id="topicInput" type="text" placeholder="Type any live topic (e.g. 'Today Nifty & Hyundai IPO' or 'Kohli vs Rohit in ICC Chases')..." class="w-full p-2.5 text-xs sub focus:outline-none" />
-                <div class="grid grid-cols-2 gap-2">
-                  <button onclick="generateLiveWithGemini()" id="btnGeminiLive" class="py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-emerald-600">
-                    ✨ Generate Live with Gemini
-                  </button>
-                  <button onclick="playSceneAndSpeak()" class="py-2.5 px-3 rounded-xl text-xs font-bold text-white" style="background: var(--acc);">
-                    🔊 Play 60FPS + Speak Voice
-                  </button>
-                </div>
-              </div>
-
-              <!-- LIVE 60FPS GSAP ANIMATED STAGE -->
-              <div class="card p-3.5 space-y-2.5">
-                <div class="flex items-center justify-between">
-                  <span id="sceneIndicator" class="text-[10px] mono font-bold">SCENE 1/4 • LIVE STAGE</span>
-                  <div class="flex gap-1">
-                    <button onclick="stepScene(-1)" class="px-2.5 py-1 text-xs sub">◀ Prev</button>
-                    <button onclick="stepScene(1)" class="px-2.5 py-1 text-xs sub">Next ▶</button>
-                  </div>
-                </div>
-
-                <div id="stage" class="p-4 rounded-2xl border transition-all" style="min-height: 360px;">
-                  <!-- Injected dynamically -->
-                </div>
-
-                <div class="p-2.5 sub text-xs italic" id="voBox"></div>
-
-                <button onclick="dispatchCloudBuild()" id="btnCloudDispatch" class="w-full py-3 rounded-xl text-xs font-bold text-white shadow-md" style="background: linear-gradient(135deg, #D97757, #B85C3E);">
-                  🚀 Push Current Script & Trigger GitHub Cloud Render + YT Upload
-                </button>
-              </div>
-            </section>
-
-            <!-- TAB 1: LIVE GITHUB ACTIONS MONITOR & RUNS -->
-            <section id="tabView-1" class="hidden space-y-4">
-              <div class="card p-4 space-y-3">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <span class="text-[10px] mono uppercase font-bold" style="color: var(--acc);">Real-Time Cloud Pipeline</span>
-                    <h3 class="serif text-xl">Live GitHub Actions Workflow Runs</h3>
-                  </div>
-                  <button onclick="fetchLiveWorkflowRuns()" class="px-3 py-1.5 text-xs font-bold sub">🔄 Refresh Runs</button>
-                </div>
-                <div id="runsContainer" class="space-y-2 text-xs">
-                  <div class="p-3 sub opacity-75">Tap "Refresh Runs" after saving your Repo & PAT in the Vault tab to view live cloud builds.</div>
-                </div>
-              </div>
-            </section>
-
-            <!-- TAB 2: LIVE JSON EDITOR & DIRECT REPO COMMIT -->
-            <section id="tabView-2" class="hidden space-y-4">
-              <div class="card p-4 space-y-3">
-                <span class="text-[10px] mono uppercase font-bold" style="color: var(--acc);">Two-Way Data Override</span>
-                <h3 class="serif text-xl">Edit & Commit Verified JSON to GitHub</h3>
-                <textarea id="jsonRawBox" rows="12" class="w-full p-3 mono text-[11px] bg-zinc-950 text-emerald-300 rounded-xl"></textarea>
-                <div class="grid grid-cols-2 gap-2">
-                  <button onclick="applyJsonFromEditor()" class="py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600">✅ Apply to Live Stage</button>
-                  <button onclick="pushJsonToGithubRepo()" class="py-2.5 rounded-xl text-xs font-bold text-white" style="background: var(--acc);">☁️ Commit JSON to Repo</button>
-                </div>
-              </div>
-            </section>
-
-            <!-- TAB 3: CLOUD-SYNCED MASTER TO-DO LIST -->
-            <section id="tabView-3" class="hidden space-y-4">
-              <div class="card p-4 space-y-3">
-                <div class="flex items-center justify-between">
-                  <h3 class="serif text-xl">Cloud-Synced Master To-Do List</h3>
-                  <button onclick="syncWithGithubCloud()" class="px-3 py-1 text-xs font-bold sub">☁️ Save to GitHub</button>
-                </div>
-                <div class="flex gap-2">
-                  <input id="todoAddInput" placeholder="Add new channel milestone or UI upgrade..." class="flex-1 p-2 text-xs sub" />
-                  <button onclick="addDynamicTodo()" class="px-3 py-2 rounded-xl text-xs font-bold text-white" style="background: var(--acc);">+ Add</button>
-                </div>
-                <div id="todoDynamicList" class="space-y-2"></div>
-              </div>
-            </section>
-
-            <!-- TAB 4: ENCRYPTED VAULT (GITHUB + GEMINI API + PIN) -->
-            <section id="tabView-4" class="hidden space-y-4">
-              <div class="card p-4 space-y-3">
-                <span class="text-[10px] mono uppercase font-bold text-emerald-600">Zero-Trust Android Vault</span>
-                <h3 class="serif text-xl">API Keys, GitHub Repo & Security PIN</h3>
-                <div>
-                  <label class="text-xs font-semibold">1. GitHub Repo (`username/pulseforge-yt-factory`)</label>
-                  <input id="repoInput" value="$savedRepo" placeholder="username/pulseforge-yt-factory" class="w-full p-2.5 text-xs mono sub mt-1" />
-                </div>
-                <div>
-                  <label class="text-xs font-semibold">2. GitHub Personal Access Token (`ghp_...`)</label>
-                  <input id="patInput" type="password" value="$savedPat" placeholder="ghp_..." class="w-full p-2.5 text-xs mono sub mt-1" />
-                </div>
-                <div>
-                  <label class="text-xs font-semibold">3. Gemini Free API Key (`AIzaSy...` for Live Dynamic Generation)</label>
-                  <input id="vGem" type="password" value="$savedGem" placeholder="Paste your Google AI Studio Gemini API Key..." class="w-full p-2.5 text-xs mono sub mt-1" />
-                </div>
-                <div>
-                  <label class="text-xs font-semibold">4. Master AES-256 Key & 4-Digit App Lock PIN</label>
-                  <div class="grid grid-cols-2 gap-2 mt-1">
-                    <input id="aesInput" value="$savedAes" class="p-2.5 text-xs mono sub" />
-                    <input id="vPin" value="$savedPin" placeholder="PIN (e.g. 2026)" class="p-2.5 text-xs mono sub" />
-                  </div>
-                </div>
-                <button onclick="saveAllVaultSettings()" class="w-full py-3 rounded-xl text-xs font-bold text-white" style="background: var(--acc);">
-                  💾 Save All Keys to Android Vault & Sync Now
-                </button>
-              </div>
-            </section>
-
-          </main>
-
-          <!-- BOTTOM NAVIGATION -->
-          <nav class="fixed bottom-0 left-0 right-0 z-40 card rounded-none border-b-0 border-x-0 px-2 py-2 flex justify-around items-center">
-            <button onclick="switchTab(0)" class="flex flex-col items-center text-[10px] font-semibold"><span>🎬</span><span>Studio</span></button>
-            <button onclick="switchTab(1)" class="flex flex-col items-center text-[10px] font-semibold"><span>⚡</span><span>Live Runs</span></button>
-            <button onclick="switchTab(2)" class="flex flex-col items-center text-[10px] font-semibold"><span>📄</span><span>JSON</span></button>
-            <button onclick="switchTab(3)" class="flex flex-col items-center text-[10px] font-semibold"><span>✅</span><span>To-Dos</span></button>
-            <button onclick="switchTab(4)" class="flex flex-col items-center text-[10px] font-semibold"><span>🔐</span><span>Vault</span></button>
-          </nav>
-
-          <script>
-            const CHANNELS_DATA = [
-              { id:'CH-01', name:'India Share Market & IPO', region:'🇮🇳 India Target', lang:'hinglish_in', theme:'claude_pdf', disclaimer:'SEBI Disclaimer: Educational only. Not SEBI-registered investment advice.', source:'Verified: NSE/BSE Closing & IPO Data', scenes:[
-                { tag:'CASH MARKET HOOK', headline:'FIIs Sold ₹3,840 Cr—But DIIs Bought ₹4,510 Cr!', subhead:'Nifty 50 holds 24,482 (+0.68%) as Domestic Mutual Funds absorb selling.', voiceover:'FIIs sold 3,840 Crore in the cash market today, yet Domestic Mutual Funds bought 4,510 Crore—here is your verified India Share Market and IPO catch-up.', metrics:[{l:'NIFTY 50',v:'24,482',d:'+0.68%'},{l:'SENSEX',v:'80,245',d:'+0.61%'},{l:'FII CASH',v:'-₹3,840 Cr',d:'Sell'},{l:'DII CASH',v:'+₹4,510 Cr',d:'Buy'}], concept:'Cash Delivery % above 60% signals genuine institutional accumulation.' },
-                { tag:'IPO SUBSCRIPTION RADAR', headline:'Mainboard IPO QIB Quota Subscribed 18.4x', subhead:'Strong institutional demand on Day 2; check RHP cash flow before bidding.', voiceover:'On the IPO radar, Qualified Institutional Buyers subscribed 18.4 times today, showing solid institutional conviction.', metrics:[{l:'QIB QUOTA',v:'18.42x',d:'Strong'},{l:'NII / HNI',v:'11.20x',d:'Active'},{l:'RETAIL',v:'4.85x',d:'Full'},{l:'ISSUE PE',v:'28.4x',d:'Fair'}], concept:'Always watch QIB subscription after 2 PM on the final bidding day.' }
-              ]},
-              { id:'CH-02', name:'Global & US Wall Street', region:'🌍 International', lang:'english_global', theme:'claude_pdf', disclaimer:'SEC Disclaimer: Educational market commentary only. Not investment advice.', source:'Verified: NASDAQ / NYSE Tape & SEC Filings', scenes:[
-                { tag:'WALL STREET BRIEF', headline:'Nasdaq 100 Surges +1.42% on AI Capex Beat', subhead:'Semiconductors add $420B market cap as 10Y yields cool to 4.18%.', voiceover:'Wall Street locked in a major semiconductor rally as institutional dark-pool buying surged into the close.', metrics:[{l:'S&P 500',v:'5,942',d:'+0.94%'},{l:'NASDAQ 100',v:'20,890',d:'+1.42%'},{l:'US 10Y',v:'4.18%',d:'-6 bps'},{l:'QQQ FLOW',v:'+$3.9B',d:'Inflow'}], concept:'Mega-cap tech leaders are funding AI infrastructure directly from operating cash flow.' }
-              ]},
-              { id:'CH-03', name:'Text Chat Stories — India', region:'🇮🇳 India Target', lang:'hinglish_in', theme:'chat_story', disclaimer:'Dramatized fictional chat story for entertainment only.', source:'Original Hinglish Script • Multi-Speaker TTS', scenes:[
-                { tag:'WHATSAPP DRAMA • PART 1', headline:'Wrong ₹50,000 UPI Transfer Turns Into a Plot Twist', subhead:'Aarav sends college fee to an unknown number—until they reply.', voiceover:'Aarav: Bro I accidentally sent 50,000 rupees on UPI to an unknown number! Reply: I will return it right now if you look at who your landlord really is.', metrics:[{l:'HOOK',v:'0.6 sec',d:'UPI SFX'},{l:'VOICES',v:'2 Speakers',d:'Hinglish'},{l:'UI SKIN',v:'WhatsApp',d:'Dark'},{l:'STATUS',v:'Safe',d:'Fiction Tag'}], concept:'Each bubble animates with GSAP spring physics synced to voiceover timestamps.' }
-              ]},
-              { id:'CH-04', name:'Text Chat Stories — Global', region:'🌍 International', lang:'english_global', theme:'chat_story', disclaimer:'Dramatized fictional story for entertainment purposes.', source:'Original Suspense Script • iMessage UI', scenes:[
-                { tag:'iMESSAGE SUSPENSE', headline:'The AirTag in My Newly Bought Used Car Was Already Named...', subhead:'iOS notification pops up 20 minutes after leaving the seller.', voiceover:'Liam: I just bought your silver Civic two hours ago, why does my iPhone say an AirTag is tracking me? Seller: Do not open the trunk. Pull over at a lit station now.', metrics:[{l:'RETENTION',v:'108%',d:'Loop End'},{l:'VOICES',v:'2 Speakers',d:'US English'},{l:'UI SKIN',v:'iMessage',d:'iOS 18'},{l:'STATUS',v:'Safe',d:'Fiction Tag'}], concept:'Typing dots build suspense for 0.9 seconds before the twist message pops.' }
-              ]},
-              { id:'CH-05', name:'Cricket Viral Stat Showdowns', region:'🇮🇳🌍 India + Global', lang:'hinglish_in', theme:'sports_arena', disclaimer:'Official ICC & IPL record comparison for sports commentary.', source:'Verified Stats: Official ICC & ESPNcricinfo Records', scenes:[
-                { tag:'ICC & IPL CHASE MASTERS', headline:'Highest Batting Average in Successful 180+ Run Chases', subhead:'100% verified career batting averages in successful pressure chases.', voiceover:'When the target crosses 180 under high pressure, here are the batters with the highest verified averages in successful chases.', metrics:[{l:'#1 V. KOHLI',v:'82.4 Avg',d:'SR 141.2'},{l:'#2 MS DHONI',v:'74.8 Avg',d:'47 NO'},{l:'#3 J. BUTTLER',v:'58.6 Avg',d:'SR 154.8'},{l:'#4 R. SHARMA',v:'51.2 Avg',d:'SR 146.5'}], concept:'Citing exact ICC cutoff dates builds instant credibility in cricket comments.' }
-              ]},
-              { id:'CH-06', name:'Football Global Stat Showdowns', region:'🌍 International', lang:'english_global', theme:'sports_arena', disclaimer:'Official UEFA & league statistical comparison.', source:'Verified Stats: Official UEFA Champions League & Opta', scenes:[
-                { tag:'UEFA KNOCKOUT LEGENDS', headline:'Most Goal Contributions in Champions League Knockouts', subhead:'Strictly Round of 16, Quarter-Finals, Semi-Finals & Finals.', voiceover:'Filtering strictly from the Round of 16 onward, here are the players with the most goals and assists in Champions League knockout history.', metrics:[{l:'#1 RONALDO',v:'67 G+A',d:'KO King'},{l:'#2 MESSI',v:'49 G+A',d:'0.94/90'},{l:'#3 MBAPPE',v:'31 G+A',d:'0.98/90'},{l:'#4 HAALAND',v:'24 G+A',d:'1.04/90'}], concept:'Knockout-stage filters trigger high-engagement fan debates in comments.' }
-              ]},
-              { id:'CH-07', name:'Global Wealth & Empire Valuations', region:'🌍 Global English', lang:'english_global', theme:'apple_bento', disclaimer:'Historical valuations adjusted for CPI inflation.', source:'Verified: SEC Filings & Historical Economic Archives', scenes:[
-                { tag:'VALUATION SHOWDOWN', headline:'Biggest Corporate & Empire Valuations in History', subhead:'Modern $3.5T AI giants compared with historical monopolies.', voiceover:'Even at 3.5 trillion dollars, modern tech giants still trail one historical trading monopoly when adjusted for inflation.', metrics:[{l:'#1 DUTCH VOC',v:'$8.2T',d:'1637 Adj'},{l:'#2 NVDA/AAPL',v:'$3.5T',d:'Modern'},{l:'#3 MICROSOFT',v:'$3.2T',d:'Cloud'},{l:'#4 ARAMCO',v:'$1.9T',d:'Energy'}], concept:'Apple Bento Grid cards flip in 3D as each trillion-dollar milestone is spoken.' }
-              ]},
-              { id:'CH-08', name:'Dark Psychology & Brain Quiz', region:'🌍🇮🇳 Global + India', lang:'english_global', theme:'bloomberg_dark', disclaimer:'Educational behavioral psychology from peer-reviewed studies.', source:'Source: Kahneman & Tversky Behavioral Economics', scenes:[
-                { tag:'COGNITIVE BIAS #19', headline:'Why a Crossed-Out Price Tricks Your Brain in 0.4 Seconds', subhead:'The Anchoring Effect explained + a 3-second decoy quiz.', voiceover:'Why does a 2,000 dollar watch suddenly look cheap next to a 10,000 dollar watch? Your brain is wired for the Anchoring Effect.', metrics:[{l:'ANCHOR',v:'$10,000',d:'Decoy'},{l:'TARGET',v:'$1,999',d:'+64% Lift'},{l:'SPEED',v:'0.4 sec',d:'System 1'},{l:'DEFENSE',v:'Zero-Base',d:'Rule'}], concept:'Always write down your cash valuation before looking at a seller’s anchor price.' }
-              ]}
-            ];
-
-            let TODOS = [
-              { id:1, text:'Install Signed Release PulseForge Pro v2.0 APK', done:true },
-              { id:2, text:'Add GEMINI_API_KEY in Vault Tab for Live AI Script Generation', done:false },
-              { id:3, text:'Test Live Native Voiceover + 60FPS GSAP Stage on Phone', done:false },
-              { id:4, text:'Trigger First India Share Market & IPO Cloud Render on GitHub', done:false },
-              { id:5, text:'Add YouTube OAuth Refresh Tokens in GitHub Repo Secrets', done:false }
-            ];
-
-            let curCh = 0;
-            let curSc = 0;
-
-            function unlockApp() {
-              const entered = document.getElementById('pinEntryInput').value.trim();
-              const saved = document.getElementById('vPin').value.trim() || '2026';
-              if (entered === saved || entered === '2026') {
-                document.getElementById('pinLockOverlay').style.display = 'none';
-              } else {
-                if (window.AndroidNativeVault) window.AndroidNativeVault.notifyNative('Incorrect PIN (Default is 2026)');
-              }
-            }
-
-            function switchTab(idx) {
-              for (let i = 0; i < 5; i++) {
-                document.getElementById('tabView-' + i).classList.toggle('hidden', i !== idx);
-              }
-              if (idx === 1) fetchLiveWorkflowRuns();
-              if (idx === 2) syncJsonBox();
-              if (idx === 3) renderTodos();
-            }
-
-            function onChannelPick(val) {
-              curCh = parseInt(val, 10) || 0;
-              curSc = 0;
-              const ch = CHANNELS_DATA[curCh];
-              document.getElementById('activeRegionBadge').textContent = ch.region;
-              document.getElementById('themeSelect').value = ch.theme;
-              renderDynamicStage();
-            }
-
-            function stepScene(dir) {
-              const ch = CHANNELS_DATA[curCh];
-              curSc = (curSc + dir + ch.scenes.length) % ch.scenes.length;
-              renderDynamicStage();
-            }
-
-            function renderDynamicStage() {
-              const ch = CHANNELS_DATA[curCh];
-              const sc = ch.scenes[curSc] || ch.scenes[0];
-              const theme = document.getElementById('themeSelect').value;
-              const stage = document.getElementById('stage');
-
-              document.getElementById('sceneIndicator').textContent = `SCENE ${curSc + 1}/${ch.scenes.length} • ${sc.tag}`;
-              document.getElementById('voBox').textContent = `🎙️ Voiceover: "${sc.voiceover}"`;
-
-              const isDarkTheme = (theme === 'bloomberg_dark' || theme === 'sports_arena' || theme === 'chat_story');
-              stage.style.backgroundColor = isDarkTheme ? '#090D16' : '#FAF8F5';
-              stage.style.color = isDarkTheme ? '#F9FAFB' : '#141413';
-              stage.style.borderColor = isDarkTheme ? '#26334D' : '#D97757';
-
-              stage.innerHTML = `
-                <div class="gsap-item flex justify-between items-center border-b pb-2 mb-2.5" style="border-color: rgba(150,150,150,0.25);">
-                  <span id="stTag" class="text-[10px] mono font-bold" style="color:#D97757;">${ch.id} • ${sc.tag}</span>
-                  <span class="text-[9px] mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-500 font-bold">${theme.toUpperCase()}</span>
-                </div>
-                <h3 id="stHead" class="gsap-item serif text-2xl leading-tight mb-1">${sc.headline}</h3>
-                <p class="gsap-item text-xs opacity-80 mb-3">${sc.subhead}</p>
-                <div class="grid grid-cols-2 gap-2 mb-3">
-                  ${(sc.metrics || []).map(m => `
-                    <div class="gsap-item p-2.5 rounded-xl border" style="border-color: rgba(150,150,150,0.25); background: rgba(217,119,87,0.08);">
-                      <div class="text-[9px] mono opacity-70">${m.l}</div>
-                      <div class="text-sm mono font-bold mt-0.5">${m.v}</div>
-                      <div class="text-[10px] mono text-emerald-500 font-semibold">${m.d}</div>
-                    </div>
-                  `).join('')}
-                </div>
-                <div class="gsap-item p-2.5 rounded-xl border text-xs mb-3" style="border-color: rgba(150,150,150,0.25);">
-                  <strong style="color:#D97757;">💡 Key Takeaway:</strong> ${sc.concept || ''}
-                </div>
-                <div id="stFoot" class="gsap-item text-[9px] mono opacity-75 border-t pt-2 space-y-0.5" style="border-color: rgba(150,150,150,0.25);">
-                  <div>✓ ${ch.source}</div>
-                  <div>⚖️ ${ch.disclaimer}</div>
-                </div>
-              `;
-
-              if (window.gsap) {
-                gsap.fromTo('.gsap-item', { opacity: 0, y: 12 }, { opacity: 1, y: 0, stagger: 0.08, duration: 0.38, ease: 'power2.out' });
-              }
-            }
-
-            function playSceneAndSpeak() {
-              const ch = CHANNELS_DATA[curCh];
-              const sc = ch.scenes[curSc] || ch.scenes[0];
-              renderDynamicStage();
-              if (window.AndroidNativeVault) {
-                window.AndroidNativeVault.speakVoiceover(sc.voiceover, ch.lang);
-              }
-            }
-
-            // LIVE GEMINI 2.5 FLASH DYNAMIC CONTENT GENERATOR
-            async function generateLiveWithGemini() {
-              const gemKey = document.getElementById('vGem').value.trim();
-              const topic = document.getElementById('topicInput').value.trim() || 'Today Top Market & Niche Highlights';
-              const ch = CHANNELS_DATA[curCh];
-              const btn = document.getElementById('btnGeminiLive');
-
-              if (!gemKey) {
-                if (window.AndroidNativeVault) window.AndroidNativeVault.notifyNative('Paste your free Gemini API Key in the Vault tab first!');
-                switchTab(4);
-                return;
-              }
-
-              btn.textContent = '⏳ Gemini Generating...';
-              btn.disabled = true;
-
-              try {
-                const prompt = `Generate a verified 2-scene JSON script for YouTube channel "${ch.name}" (${ch.region}) on topic: "${topic}".
-                Return strictly valid JSON with this structure:
-                {"source":"Verified Source Name","scenes":[{"tag":"HOOK","headline":"Punchy Headline","subhead":"1-line summary","voiceover":"Spoken script line","metrics":[{"l":"METRIC 1","v":"Value","d":"Delta"},{"l":"METRIC 2","v":"Value","d":"Delta"},{"l":"METRIC 3","v":"Value","d":"Delta"},{"l":"METRIC 4","v":"Value","d":"Delta"}],"concept":"1-sentence educational takeaway"}]}`;
-
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${gemKey}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { responseMimeType: 'application/json' }
-                  })
-                });
-                const data = await res.json();
-                const rawText = data.candidates[0].content.parts[0].text;
-                const parsed = JSON.parse(rawText);
-                if (parsed.scenes && parsed.scenes.length > 0) {
-                  ch.scenes = parsed.scenes;
-                  if (parsed.source) ch.source = parsed.source;
-                  curSc = 0;
-                  renderDynamicStage();
-                  playSceneAndSpeak();
-                  if (window.AndroidNativeVault) window.AndroidNativeVault.notifyNative('✨ Live Gemini 2.5 Script Generated & Loaded!');
-                }
-              } catch (e) {
-                if (window.AndroidNativeVault) window.AndroidNativeVault.notifyNative('Gemini API Error: ' + e.message);
-              } finally {
-                btn.textContent = '✨ Generate Live with Gemini';
-                btn.disabled = false;
-              }
-            }
-
-            // LIVE GITHUB ACTIONS WORKFLOW RUNS MONITOR
-            async function fetchLiveWorkflowRuns() {
-              const repo = document.getElementById('repoInput').value.trim();
-              let pat = document.getElementById('patInput').value.trim();
-              if (pat.startsWith('Ghp_')) pat = 'ghp_' + pat.slice(4);
-              const box = document.getElementById('runsContainer');
-              if (!repo || !pat) {
-                box.innerHTML = '<div class="p-3 sub">Save your GitHub Repo and Token in the Vault tab first.</div>';
-                return;
-              }
-              box.innerHTML = '<div class="p-3 sub">⏳ Fetching live workflow runs from GitHub...</div>';
-              try {
-                const res = await fetch(`https://api.github.com/repos/${repo}/actions/runs?per_page=8`, {
-                  headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${pat}` }
-                });
-                const data = await res.json();
-                if (!data.workflow_runs || data.workflow_runs.length === 0) {
-                  box.innerHTML = '<div class="p-3 sub">No workflow runs found yet. Tap Dispatch in Studio to start one!</div>';
-                  return;
-                }
-                box.innerHTML = data.workflow_runs.map(r => `
-                  <div class="p-3 sub flex items-center justify-between">
-                    <div>
-                      <div class="font-bold text-xs">${r.name}</div>
-                      <div class="text-[10px] mono opacity-75">Run #${r.run_number} • ${new Date(r.created_at).toLocaleString()}</div>
-                    </div>
-                    <span class="px-2 py-1 rounded text-[10px] mono font-bold ${r.conclusion === 'success' ? 'bg-emerald-500/20 text-emerald-500' : (r.status === 'in_progress' ? 'bg-amber-500/20 text-amber-500' : 'bg-rose-500/20 text-rose-500')}">
-                      ${r.conclusion || r.status}
-                    </span>
-                  </div>
-                `).join('');
-              } catch (e) {
-                box.innerHTML = `<div class="p-3 sub text-rose-500">Error loading runs: ${e.message}</div>`;
-              }
-            }
-
-            // TWO-WAY CLOUD SYNC WITH GITHUB REPO
-            async function syncWithGithubCloud() {
-              const repo = document.getElementById('repoInput').value.trim();
-              let pat = document.getElementById('patInput').value.trim();
-              if (pat.startsWith('Ghp_')) pat = 'ghp_' + pat.slice(4);
-              if (!repo || !pat) {
-                if (window.AndroidNativeVault) window.AndroidNativeVault.notifyNative('Configure your GitHub Repo & Token in Vault first!');
-                switchTab(4);
-                return;
-              }
-              const badge = document.getElementById('cloudSyncBadge');
-              badge.textContent = '⏳ Syncing...';
-              try {
-                const headers = { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${pat}`, 'Content-Type': 'application/json' };
-                const syncState = { updated_at: new Date().toISOString(), channels: CHANNELS_DATA, todos: TODOS };
-                const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(syncState, null, 2))));
-
-                let sha = undefined;
-                const check = await fetch(`https://api.github.com/repos/${repo}/contents/state/studio_sync.json`, { headers });
-                if (check.ok) {
-                  const cj = await check.json();
-                  sha = cj.sha;
-                }
-                const body = { message: 'Sync dynamic Studio state from Android app', content: contentB64 };
-                if (sha) body.sha = sha;
-                const put = await fetch(`https://api.github.com/repos/${repo}/contents/state/studio_sync.json`, {
-                  method: 'PUT', headers, body: JSON.stringify(body)
-                });
-                if (put.ok) {
-                  badge.textContent = '✓ Cloud Synced';
-                  if (window.AndroidNativeVault) window.AndroidNativeVault.notifyNative('✓ Synced Channels, Scripts & To-Dos with GitHub Repo!');
-                }
-              } catch (e) {
-                badge.textContent = '⚠️ Sync Offline';
-              }
-            }
-
-            async function dispatchCloudBuild() {
-              await syncWithGithubCloud();
-              const repo = document.getElementById('repoInput').value.trim();
-              let pat = document.getElementById('patInput').value.trim();
-              if (pat.startsWith('Ghp_')) pat = 'ghp_' + pat.slice(4);
-              const ch = CHANNELS_DATA[curCh];
-              const fmt = document.getElementById('fmtSelect').value;
-              const th = document.getElementById('themeSelect').value;
-              const top = document.getElementById('topicInput').value.trim();
-
-              if (!repo || !pat) {
-                if (window.AndroidNativeVault) window.AndroidNativeVault.notifyNative('Add your GitHub Repo & Token in the Vault tab first!');
-                switchTab(4);
-                return;
-              }
-              try {
-                const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/youtube_factory.yml/dispatches`, {
-                  method: 'POST',
-                  headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${pat}`, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    ref: 'main',
-                    inputs: { channel_id: ch.id, video_format: fmt, visual_theme: th, voice_engine: 'gemini_native', data_mode: 'auto_api', custom_topic: top }
-                  })
-                });
-                if (res.ok) {
-                  if (window.AndroidNativeVault) window.AndroidNativeVault.notifyNative(`🚀 Dispatched ${ch.id} to GitHub Cloud Factory!`);
-                  switchTab(1);
-                } else {
-                  if (window.AndroidNativeVault) window.AndroidNativeVault.notifyNative(`GitHub HTTP ${res.status}: Check workflow file & token scope.`);
-                }
-              } catch (e) {
-                if (window.AndroidNativeVault) window.AndroidNativeVault.notifyNative('Error: ' + e.message);
-              }
-            }
-
-            function syncJsonBox() {
-              document.getElementById('jsonRawBox').value = JSON.stringify(CHANNELS_DATA[curCh], null, 2);
-            }
-
-            function applyJsonFromEditor() {
-              try {
-                const parsed = JSON.parse(document.getElementById('jsonRawBox').value);
-                CHANNELS_DATA[curCh] = parsed;
-                curSc = 0;
-                renderDynamicStage();
-                switchTab(0);
-                if (window.AndroidNativeVault) window.AndroidNativeVault.notifyNative('✓ Custom JSON Applied to Live Stage!');
-              } catch (e) {
-                if (window.AndroidNativeVault) window.AndroidNativeVault.notifyNative('Invalid JSON: ' + e.message);
-              }
-            }
-
-            async function pushJsonToGithubRepo() {
-              applyJsonFromEditor();
-              await syncWithGithubCloud();
-            }
-
-            function renderTodos() {
-              const box = document.getElementById('todoDynamicList');
-              box.innerHTML = TODOS.map((t, i) => `
-                <div onclick="toggleTodo(${i})" class="p-3 sub flex items-center gap-2.5 cursor-pointer">
-                  <input type="checkbox" ${t.done ? 'checked' : ''} />
-                  <span class="text-xs ${t.done ? 'line-through opacity-60' : 'font-semibold'}">${t.text}</span>
-                </div>
-              `).join('');
-            }
-
-            function toggleTodo(i) {
-              TODOS[i].done = !TODOS[i].done;
-              renderTodos();
-            }
-
-            function addDynamicTodo() {
-              const inp = document.getElementById('todoAddInput');
-              if (!inp.value.trim()) return;
-              TODOS.push({ id: Date.now(), text: inp.value.trim(), done: false });
-              inp.value = '';
-              renderTodos();
-            }
-
-            function saveAllVaultSettings() {
-              const r = document.getElementById('repoInput').value.trim();
-              const p = document.getElementById('patInput').value.trim();
-              const g = document.getElementById('vGem').value.trim();
-              const a = document.getElementById('aesInput').value.trim();
-              const pin = document.getElementById('vPin').value.trim();
-              if (window.AndroidNativeVault) {
-                window.AndroidNativeVault.saveAllCredentials(r, p, g, a, pin);
-              }
-              syncWithGithubCloud();
-            }
-
-            renderDynamicStage();
-            renderTodos();
-          <\/script>
-        </body>
-        </html>
-        """.trimIndent()
     }
 }
