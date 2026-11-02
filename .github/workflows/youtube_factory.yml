@@ -2,34 +2,32 @@ name: 2. Unified Zero-Leak Decrypt-Render-ReEncrypt Factory
 on:
   schedule:
     - cron: '30 10 * * 1-5' # 4:00 PM IST India Post-Market Catch-Up
-    - cron: '30 21 * * 1-5' # 4:30 PM EST US Wall Street Catch-Up
-    - cron: '0 13 * * *'    # Daily Cricket/Football/Chat Story Slot
   workflow_dispatch:
     inputs:
       channel_id:
-        description: 'Target Channel ID (CH-01 to CH-08)'
+        description: 'Channel ID (Focused on CH-01: India Share Market & IPO)'
         required: true
-        default: 'CH-05'
+        default: 'CH-01'
       video_format:
-        description: '9:16, 16:9, or auto'
+        description: '9:16 (Shorts) or 16:9 (Full Video)'
         required: true
         default: '9:16'
       visual_theme:
-        description: 'claude_pdf, bloomberg_dark, apple_bento, chat_story, sports_arena'
+        description: 'claude_pdf (Warm Editorial) or bloomberg_dark (Dark Terminal)'
         required: true
-        default: 'sports_arena'
+        default: 'claude_pdf'
       voice_engine:
-        description: 'kokoro_82m (ElevenLabs-grade Blended) or gemini_native'
+        description: 'kokoro_82m (3-Voice Blended Human) or gemini_native'
         required: true
         default: 'kokoro_82m'
       data_mode:
-        description: 'auto_api or manual_json'
+        description: 'auto_api (Live NSE/BSE yfinance + Gemini Grounded)'
         required: true
         default: 'auto_api'
       custom_topic:
-        description: 'Optional Custom Headline / Topic'
+        description: 'Optional Custom Market Focus (leave blank for Auto Daily Closing Brief)'
         required: false
-        default: 'Virat Kohli Top 5 Overseas Test Centuries'
+        default: ''
 
 jobs:
   secure_ram_factory:
@@ -38,13 +36,13 @@ jobs:
       - name: 1. Checkout Encrypted Public Repo (Contains ONLY vault.enc)
         uses: actions/checkout@v4
 
-      - name: 2. Install Kokoro-82M Neural Voice, Playwright & FFmpeg
+      - name: 2. Install Live Market Fetcher (yfinance), Kokoro-82M, Playwright & FFmpeg
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           pip install --quiet google-genai kokoro-onnx soundfile numpy yfinance edge-tts playwright google-api-python-client google-auth-oauthlib
           playwright install --with-deps chromium
 
-      - name: 3. Atomic In-RAM Decrypt -> Record Live GSAP Video -> Re-Encrypt
+      - name: 3. Atomic In-RAM Decrypt -> Fetch Real NSE/BSE Data & Render GSAP Video -> Re-Encrypt
         env:
           USER_MASTER_KEY: ${{ secrets.MASTER_DECRYPTION_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -54,7 +52,6 @@ jobs:
           mkdir -p "$RAM_VAULT" /dev/shm/pulseforge/output /tmp/deliverables
           chmod 700 "$RAM_VAULT"
 
-          # 1. Decrypt Base64-encoded vault.enc (-a flag prevents "bad magic number"!)
           DECRYPTED=0
           for CANDIDATE_KEY in "$USER_MASTER_KEY" "PF-2026-AES256-KEY" "PF-2026-ULTRA-VAULT-99X"; do
             if [ -n "$CANDIDATE_KEY" ]; then
@@ -74,18 +71,14 @@ jobs:
           tar -xzf "$RAM_VAULT/bundle.tar.gz" -C "$RAM_VAULT"
           rm -f "$RAM_VAULT/bundle.tar.gz"
 
-          # 2. Generate Viral Script + Kokoro-82M Blended / Gemini Mastered Studio Audio
-          python3 "$RAM_VAULT/generate_verified_script.py"             --channel "${{ github.event.inputs.channel_id || 'CH-05' }}"             --format "${{ github.event.inputs.video_format || '9:16' }}"             --theme "${{ github.event.inputs.visual_theme || 'sports_arena' }}"             --voice "${{ github.event.inputs.voice_engine || 'kokoro_82m' }}"             --topic "${{ github.event.inputs.custom_topic || 'Virat Kohli Top 5 Overseas Test Centuries' }}"
+          python3 "$RAM_VAULT/generate_verified_script.py"             --channel "${{ github.event.inputs.channel_id || 'CH-01' }}"             --format "${{ github.event.inputs.video_format || '9:16' }}"             --theme "${{ github.event.inputs.visual_theme || 'claude_pdf' }}"             --voice "${{ github.event.inputs.voice_engine || 'kokoro_82m' }}"             --topic "${{ github.event.inputs.custom_topic || '' }}"
 
-          # 3. Record Live HTML + Tailwind CSS + GSAP After-Effects Video & Companion PDF
           python3 "$RAM_VAULT/render_gsap_video_and_pdf.py"
 
-          # 4. Copy final MP4 & PDF to /tmp/deliverables for Artifact download
           cp /dev/shm/pulseforge/output/final_youtube_video.mp4 /tmp/deliverables/
           cp /dev/shm/pulseforge/output/daily_claude_report.pdf /tmp/deliverables/
           cp /dev/shm/pulseforge/output/render_payload.json /tmp/deliverables/
 
-          # 5. Rolling Re-Encryption of vault.enc in Base64 (-a) mode
           tar -czf "$RAM_VAULT/repack.tar.gz" -C "$RAM_VAULT" generate_verified_script.py render_gsap_video_and_pdf.py
           openssl enc -aes-256-cbc -pbkdf2 -salt -a -in "$RAM_VAULT/repack.tar.gz" -out vault.enc -pass "pass:$ACTIVE_KEY"
 
