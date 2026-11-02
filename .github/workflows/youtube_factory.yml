@@ -9,19 +9,19 @@ on:
       channel_id:
         description: 'Target Channel ID (CH-01 to CH-08)'
         required: true
-        default: 'CH-01'
+        default: 'CH-05'
       video_format:
         description: '9:16, 16:9, or auto'
         required: true
-        default: 'auto'
+        default: '9:16'
       visual_theme:
         description: 'claude_pdf, bloomberg_dark, apple_bento, chat_story, sports_arena'
         required: true
-        default: 'claude_pdf'
+        default: 'sports_arena'
       voice_engine:
-        description: 'gemini_native, kokoro_82m, or edge_ava'
+        description: 'kokoro_82m (ElevenLabs-grade Blended) or gemini_native'
         required: true
-        default: 'gemini_native'
+        default: 'kokoro_82m'
       data_mode:
         description: 'auto_api or manual_json'
         required: true
@@ -29,7 +29,7 @@ on:
       custom_topic:
         description: 'Optional Custom Headline / Topic'
         required: false
-        default: ''
+        default: 'Virat Kohli Top 5 Overseas Test Centuries'
 
 jobs:
   secure_ram_factory:
@@ -38,38 +38,55 @@ jobs:
       - name: 1. Checkout Encrypted Public Repo (Contains ONLY vault.enc)
         uses: actions/checkout@v4
 
-      - name: 2. Install Runtime Dependencies Quietly
+      - name: 2. Install Kokoro-82M Neural Voice, Playwright & FFmpeg
         run: |
-          pip install --quiet google-genai yfinance edge-tts playwright google-api-python-client google-auth-oauthlib
-          playwright install --with-deps chromium >/dev/null 2>&1
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install --quiet google-genai kokoro-onnx soundfile numpy yfinance edge-tts playwright google-api-python-client google-auth-oauthlib
+          playwright install --with-deps chromium
 
-      - name: 3. Atomic In-RAM Decrypt -> Execute -> Rolling Re-Encrypt
+      - name: 3. Atomic In-RAM Decrypt -> Render MP4 & PDF -> Re-Encrypt
         env:
-          MASTER_KEY: ${{ secrets.MASTER_DECRYPTION_KEY || 'PF-2026-ULTRA-VAULT-99X' }}
+          MASTER_KEY: ${{ secrets.MASTER_DECRYPTION_KEY || 'PF-2026-AES256-KEY' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          YT_REFRESH_TOKEN_MAP: ${{ secrets.YT_REFRESH_TOKEN_MAP }}
         run: |
           set +x
           echo "::add-mask::$MASTER_KEY"
           RAM_VAULT="/dev/shm/.pf_ram_${GITHUB_RUN_ID}"
-          mkdir -p "$RAM_VAULT"
+          mkdir -p "$RAM_VAULT" /dev/shm/pulseforge/output /tmp/deliverables
           chmod 700 "$RAM_VAULT"
 
-          # 1. Decrypt vault.enc strictly into RAM (/dev/shm)
+          # 1. Decrypt vault.enc into private RAM (/dev/shm)
           openssl enc -d -aes-256-cbc -pbkdf2 -in vault.enc -out "$RAM_VAULT/bundle.tar.gz" -pass env:MASTER_KEY
           tar -xzf "$RAM_VAULT/bundle.tar.gz" -C "$RAM_VAULT"
           rm -f "$RAM_VAULT/bundle.tar.gz"
 
-          # 2. Run Verified Script + Gemini Search Grounding + Near-Human TTS in RAM
-          python3 "$RAM_VAULT/generate_verified_script.py"             --channel "${{ github.event.inputs.channel_id || 'CH-01' }}"             --format "${{ github.event.inputs.video_format || 'auto' }}"             --theme "${{ github.event.inputs.visual_theme || 'claude_pdf' }}"             --voice "${{ github.event.inputs.voice_engine || 'gemini_native' }}"             --topic "${{ github.event.inputs.custom_topic || '' }}"
+          # 2. Generate Viral Script + Kokoro-82M Blended / Gemini Mastered Studio Audio
+          python3 "$RAM_VAULT/generate_verified_script.py"             --channel "${{ github.event.inputs.channel_id || 'CH-05' }}"             --format "${{ github.event.inputs.video_format || '9:16' }}"             --theme "${{ github.event.inputs.visual_theme || 'sports_arena' }}"             --voice "${{ github.event.inputs.voice_engine || 'kokoro_82m' }}"             --topic "${{ github.event.inputs.custom_topic || 'Virat Kohli Top 5 Overseas Test Centuries' }}"
 
-          # 3. Re-encrypt RAM bundle with a fresh cryptographic salt back into vault.enc
-          tar -czf "$RAM_VAULT/repack.tar.gz" -C "$RAM_VAULT" generate_verified_script.py
+          # 3. Render 1080x1920 MP4 Video + 1-Page Claude PDF Report
+          python3 "$RAM_VAULT/render_gsap_video_and_pdf.py"
+
+          # 4. Copy ONLY final MP4 & PDF to /tmp/deliverables for Artifact download
+          cp /dev/shm/pulseforge/output/final_youtube_video.mp4 /tmp/deliverables/
+          cp /dev/shm/pulseforge/output/daily_claude_report.pdf /tmp/deliverables/
+          cp /dev/shm/pulseforge/output/render_payload.json /tmp/deliverables/
+
+          # 5. Rolling Re-Encryption of vault.enc
+          tar -czf "$RAM_VAULT/repack.tar.gz" -C "$RAM_VAULT" generate_verified_script.py render_gsap_video_and_pdf.py
           openssl enc -aes-256-cbc -pbkdf2 -salt -in "$RAM_VAULT/repack.tar.gz" -out vault.enc -pass env:MASTER_KEY
 
-      - name: 4. Guaranteed RAM Shredder Trap (Runs Even If Cancelled or Failed)
+      - name: 4. Upload Rendered MP4 Video & PDF Report to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PulseForge-Rendered-Video-and-PDF
+          path: |
+            /tmp/deliverables/final_youtube_video.mp4
+            /tmp/deliverables/daily_claude_report.pdf
+            /tmp/deliverables/render_payload.json
+
+      - name: 5. Guaranteed RAM Shredder Trap (Zero Code Left on Runner)
         if: always()
         run: |
           set +x
-          rm -rf /dev/shm/.pf_ram_*
-          echo "✓ Temporary RAM vault wiped 100% clean. Zero plain-text code left on runner."
+          rm -rf /dev/shm/.pf_ram_* /dev/shm/pulseforge
+          echo "✓ Wiped temporary RAM vault 100% clean."

@@ -556,7 +556,32 @@
       return URL.createObjectURL(blob);
     }
 
+    let bgmOsc1 = null, bgmGain = null, bgmCtx = null;
+    function startInAppCinematicBed() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!bgmCtx) bgmCtx = new AC();
+        if (bgmCtx.state === 'suspended') bgmCtx.resume();
+        stopInAppCinematicBed();
+        bgmOsc1 = bgmCtx.createOscillator();
+        bgmGain = bgmCtx.createGain();
+        bgmOsc1.type = 'triangle';
+        bgmOsc1.frequency.setValueAtTime(65.41, bgmCtx.currentTime);
+        bgmGain.gain.setValueAtTime(0.035, bgmCtx.currentTime);
+        bgmOsc1.connect(bgmGain);
+        bgmGain.connect(bgmCtx.destination);
+        bgmOsc1.start();
+      } catch (e) {}
+    }
+    function stopInAppCinematicBed() {
+      try {
+        if (bgmOsc1) { bgmOsc1.stop(); bgmOsc1.disconnect(); bgmOsc1 = null; }
+      } catch (e) {}
+    }
+
     async function speakWithGeminiNeuralTts(text, langCode) {
+      startInAppCinematicBed();
       const gemKey = document.getElementById('vGem').value.replace(/\s+/g, '');
       const voiceActor = document.getElementById('voiceActorSelect').value || 'Puck';
       const pill = document.getElementById('voiceStatusPill');
@@ -613,6 +638,7 @@
     }
 
     function stopFullVideoPlayback() {
+      stopInAppCinematicBed();
       isPlayingVideo = false;
       clearInterval(sceneTimer);
       const btn = document.getElementById('btnPlayFullVideo');
