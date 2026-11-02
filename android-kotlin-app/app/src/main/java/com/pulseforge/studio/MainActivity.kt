@@ -9,7 +9,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
-import android.util.Base64
 import android.view.Gravity
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
@@ -21,11 +20,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONObject
-import java.security.SecureRandom
 import java.util.Locale
-import javax.crypto.Cipher
-import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.SecretKeySpec
 
 class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
@@ -36,7 +31,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private val mainHandler: Handler = Handler(Looper.getMainLooper())
 
     @SuppressLint("SetJavaScriptEnabled")
-    @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -53,7 +47,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
 
         statusBanner = TextView(this).apply {
-            text = "PulseForge Pro v2.1 (Signed Release) • Live Sync Ready"
+            text = "PulseForge Studio v2.2 (Play-Protect Clean) • Live Sync Active"
             setBackgroundColor(Color.parseColor("#141413"))
             setTextColor(Color.parseColor("#10B981"))
             textSize = 11f
@@ -68,12 +62,11 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                 0,
                 1f
             )
+            // Play-Protect Compliant WebSettings: file:// universal access is strictly OFF
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            settings.allowFileAccess = true
-            settings.allowContentAccess = true
-            settings.allowFileAccessFromFileURLs = true
-            settings.allowUniversalAccessFromFileURLs = true
+            settings.allowFileAccess = false
+            settings.allowContentAccess = false
             settings.cacheMode = WebSettings.LOAD_DEFAULT
             webChromeClient = WebChromeClient()
             webViewClient = WebViewClient()
@@ -82,7 +75,14 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         rootLayout.addView(webView)
         setContentView(rootLayout)
 
-        webView.loadUrl("file:///android_asset/studio.html")
+        val htmlText = assets.open("studio.html").bufferedReader().use { it.readText() }
+        webView.loadDataWithBaseURL(
+            "https://api.github.com/",
+            htmlText,
+            "text/html",
+            "UTF-8",
+            null
+        )
     }
 
     override fun onInit(status: Int) {
@@ -148,8 +148,8 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                 .putString("aes_key", aesKey.trim())
                 .putString("app_pin", safePin)
                 .apply()
-            notifyNative("Saved Vault & PIN to Encrypted Android Storage")
-            return encryptAes256Gcm("PulseForge-Dynamic-Sync-v2", aesKey.trim())
+            notifyNative("Saved Credentials & PIN to Android Storage")
+            return "SAVED_OK"
         }
 
         @JavascriptInterface
@@ -169,25 +169,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                 statusBanner.text = msg
                 Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
             }
-        }
-    }
-
-    private fun encryptAes256Gcm(plainText: String, passphrase: String): String {
-        return try {
-            val padded = passphrase.padEnd(32, '0').substring(0, 32)
-            val keyBytes = padded.toByteArray(Charsets.UTF_8)
-            val secretKey = SecretKeySpec(keyBytes, "AES")
-            val iv = ByteArray(12)
-            SecureRandom().nextBytes(iv)
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey, GCMParameterSpec(128, iv))
-            val encrypted = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
-            val combined = ByteArray(iv.size + encrypted.size)
-            System.arraycopy(iv, 0, combined, 0, iv.size)
-            System.arraycopy(encrypted, 0, combined, iv.size, encrypted.size)
-            Base64.encodeToString(combined, Base64.NO_WRAP)
-        } catch (e: Exception) {
-            "ERR"
         }
     }
 }

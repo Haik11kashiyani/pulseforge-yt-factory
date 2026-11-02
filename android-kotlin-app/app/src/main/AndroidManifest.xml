@@ -4,7 +4,8 @@
     <application
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
-        android:label="PulseForge Studio Pro"
+        android:icon="@drawable/ic_launcher"
+        android:label="PulseForge Studio"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         <activity
