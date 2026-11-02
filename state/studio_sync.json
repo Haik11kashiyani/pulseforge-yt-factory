@@ -1,0 +1,396 @@
+{
+  "updated_at": "2026-11-02T07:20:25.236Z",
+  "channels": [
+    {
+      "id": "CH-01",
+      "name": "India Share Market & IPO",
+      "region": "🇮🇳 India Target",
+      "lang": "hinglish_in",
+      "theme": "claude_pdf",
+      "disclaimer": "SEBI Disclaimer: Educational only. Not SEBI-registered investment advice.",
+      "source": "Verified: NSE/BSE Closing & IPO Data",
+      "scenes": [
+        {
+          "tag": "CASH MARKET HOOK",
+          "headline": "FIIs Sold ₹3,840 Cr—But DIIs Bought ₹4,510 Cr!",
+          "subhead": "Nifty 50 holds 24,482 (+0.68%) as Domestic Mutual Funds absorb selling.",
+          "voiceover": "FIIs sold 3,840 Crore in the cash market today, yet Domestic Mutual Funds bought 4,510 Crore—here is your verified India Share Market and IPO catch-up.",
+          "metrics": [
+            {
+              "l": "NIFTY 50",
+              "v": "24,482",
+              "d": "+0.68%"
+            },
+            {
+              "l": "SENSEX",
+              "v": "80,245",
+              "d": "+0.61%"
+            },
+            {
+              "l": "FII CASH",
+              "v": "-₹3,840 Cr",
+              "d": "Sell"
+            },
+            {
+              "l": "DII CASH",
+              "v": "+₹4,510 Cr",
+              "d": "Buy"
+            }
+          ],
+          "concept": "Cash Delivery % above 60% signals genuine institutional accumulation."
+        },
+        {
+          "tag": "IPO SUBSCRIPTION RADAR",
+          "headline": "Mainboard IPO QIB Quota Subscribed 18.4x",
+          "subhead": "Strong institutional demand on Day 2; check RHP cash flow before bidding.",
+          "voiceover": "On the IPO radar, Qualified Institutional Buyers subscribed 18.4 times today, showing solid institutional conviction.",
+          "metrics": [
+            {
+              "l": "QIB QUOTA",
+              "v": "18.42x",
+              "d": "Strong"
+            },
+            {
+              "l": "NII / HNI",
+              "v": "11.20x",
+              "d": "Active"
+            },
+            {
+              "l": "RETAIL",
+              "v": "4.85x",
+              "d": "Full"
+            },
+            {
+              "l": "ISSUE PE",
+              "v": "28.4x",
+              "d": "Fair"
+            }
+          ],
+          "concept": "Always watch QIB subscription after 2 PM on the final bidding day."
+        }
+      ]
+    },
+    {
+      "id": "CH-02",
+      "name": "Global & US Wall Street",
+      "region": "🌍 International",
+      "lang": "english_global",
+      "theme": "claude_pdf",
+      "disclaimer": "SEC Disclaimer: Educational market commentary only. Not investment advice.",
+      "source": "Verified: NASDAQ / NYSE Tape & SEC Filings",
+      "scenes": [
+        {
+          "tag": "WALL STREET BRIEF",
+          "headline": "Nasdaq 100 Surges +1.42% on AI Capex Beat",
+          "subhead": "Semiconductors add $420B market cap as 10Y yields cool to 4.18%.",
+          "voiceover": "Wall Street locked in a major semiconductor rally as institutional dark-pool buying surged into the close.",
+          "metrics": [
+            {
+              "l": "S&P 500",
+              "v": "5,942",
+              "d": "+0.94%"
+            },
+            {
+              "l": "NASDAQ 100",
+              "v": "20,890",
+              "d": "+1.42%"
+            },
+            {
+              "l": "US 10Y",
+              "v": "4.18%",
+              "d": "-6 bps"
+            },
+            {
+              "l": "QQQ FLOW",
+              "v": "+$3.9B",
+              "d": "Inflow"
+            }
+          ],
+          "concept": "Mega-cap tech leaders are funding AI infrastructure directly from operating cash flow."
+        }
+      ]
+    },
+    {
+      "id": "CH-03",
+      "name": "Text Chat Stories — India",
+      "region": "🇮🇳 India Target",
+      "lang": "hinglish_in",
+      "theme": "chat_story",
+      "disclaimer": "Dramatized fictional chat story for entertainment only.",
+      "source": "Original Hinglish Script • Multi-Speaker TTS",
+      "scenes": [
+        {
+          "tag": "WHATSAPP DRAMA • PART 1",
+          "headline": "Wrong ₹50,000 UPI Transfer Turns Into a Plot Twist",
+          "subhead": "Aarav sends college fee to an unknown number—until they reply.",
+          "voiceover": "Aarav: Bro I accidentally sent 50,000 rupees on UPI to an unknown number! Reply: I will return it right now if you look at who your landlord really is.",
+          "metrics": [
+            {
+              "l": "HOOK",
+              "v": "0.6 sec",
+              "d": "UPI SFX"
+            },
+            {
+              "l": "VOICES",
+              "v": "2 Speakers",
+              "d": "Hinglish"
+            },
+            {
+              "l": "UI SKIN",
+              "v": "WhatsApp",
+              "d": "Dark"
+            },
+            {
+              "l": "STATUS",
+              "v": "Safe",
+              "d": "Fiction Tag"
+            }
+          ],
+          "concept": "Each bubble animates with GSAP spring physics synced to voiceover timestamps."
+        }
+      ]
+    },
+    {
+      "id": "CH-04",
+      "name": "Text Chat Stories — Global",
+      "region": "🌍 International",
+      "lang": "english_global",
+      "theme": "chat_story",
+      "disclaimer": "Dramatized fictional story for entertainment purposes.",
+      "source": "Original Suspense Script • iMessage UI",
+      "scenes": [
+        {
+          "tag": "iMESSAGE SUSPENSE",
+          "headline": "The AirTag in My Newly Bought Used Car Was Already Named...",
+          "subhead": "iOS notification pops up 20 minutes after leaving the seller.",
+          "voiceover": "Liam: I just bought your silver Civic two hours ago, why does my iPhone say an AirTag is tracking me? Seller: Do not open the trunk. Pull over at a lit station now.",
+          "metrics": [
+            {
+              "l": "RETENTION",
+              "v": "108%",
+              "d": "Loop End"
+            },
+            {
+              "l": "VOICES",
+              "v": "2 Speakers",
+              "d": "US English"
+            },
+            {
+              "l": "UI SKIN",
+              "v": "iMessage",
+              "d": "iOS 18"
+            },
+            {
+              "l": "STATUS",
+              "v": "Safe",
+              "d": "Fiction Tag"
+            }
+          ],
+          "concept": "Typing dots build suspense for 0.9 seconds before the twist message pops."
+        }
+      ]
+    },
+    {
+      "id": "CH-05",
+      "name": "Cricket Viral Stat Showdowns",
+      "region": "🇮🇳🌍 India + Global",
+      "lang": "hinglish_in",
+      "theme": "sports_arena",
+      "disclaimer": "Official ICC & IPL record comparison for sports commentary.",
+      "source": "Verified Stats: Official ICC & ESPNcricinfo Records",
+      "scenes": [
+        {
+          "tag": "ICC & IPL CHASE MASTERS",
+          "headline": "Highest Batting Average in Successful 180+ Run Chases",
+          "subhead": "100% verified career batting averages in successful pressure chases.",
+          "voiceover": "When the target crosses 180 under high pressure, here are the batters with the highest verified averages in successful chases.",
+          "metrics": [
+            {
+              "l": "#1 V. KOHLI",
+              "v": "82.4 Avg",
+              "d": "SR 141.2"
+            },
+            {
+              "l": "#2 MS DHONI",
+              "v": "74.8 Avg",
+              "d": "47 NO"
+            },
+            {
+              "l": "#3 J. BUTTLER",
+              "v": "58.6 Avg",
+              "d": "SR 154.8"
+            },
+            {
+              "l": "#4 R. SHARMA",
+              "v": "51.2 Avg",
+              "d": "SR 146.5"
+            }
+          ],
+          "concept": "Citing exact ICC cutoff dates builds instant credibility in cricket comments."
+        }
+      ]
+    },
+    {
+      "id": "CH-06",
+      "name": "Football Global Stat Showdowns",
+      "region": "🌍 International",
+      "lang": "english_global",
+      "theme": "sports_arena",
+      "disclaimer": "Official UEFA & league statistical comparison.",
+      "source": "Verified Stats: Official UEFA Champions League & Opta",
+      "scenes": [
+        {
+          "tag": "UEFA KNOCKOUT LEGENDS",
+          "headline": "Most Goal Contributions in Champions League Knockouts",
+          "subhead": "Strictly Round of 16, Quarter-Finals, Semi-Finals & Finals.",
+          "voiceover": "Filtering strictly from the Round of 16 onward, here are the players with the most goals and assists in Champions League knockout history.",
+          "metrics": [
+            {
+              "l": "#1 RONALDO",
+              "v": "67 G+A",
+              "d": "KO King"
+            },
+            {
+              "l": "#2 MESSI",
+              "v": "49 G+A",
+              "d": "0.94/90"
+            },
+            {
+              "l": "#3 MBAPPE",
+              "v": "31 G+A",
+              "d": "0.98/90"
+            },
+            {
+              "l": "#4 HAALAND",
+              "v": "24 G+A",
+              "d": "1.04/90"
+            }
+          ],
+          "concept": "Knockout-stage filters trigger high-engagement fan debates in comments."
+        }
+      ]
+    },
+    {
+      "id": "CH-07",
+      "name": "Global Wealth & Empire Valuations",
+      "region": "🌍 Global English",
+      "lang": "english_global",
+      "theme": "apple_bento",
+      "disclaimer": "Historical valuations adjusted for CPI inflation.",
+      "source": "Verified: SEC Filings & Historical Economic Archives",
+      "scenes": [
+        {
+          "tag": "VALUATION SHOWDOWN",
+          "headline": "Biggest Corporate & Empire Valuations in History",
+          "subhead": "Modern $3.5T AI giants compared with historical monopolies.",
+          "voiceover": "Even at 3.5 trillion dollars, modern tech giants still trail one historical trading monopoly when adjusted for inflation.",
+          "metrics": [
+            {
+              "l": "#1 DUTCH VOC",
+              "v": "$8.2T",
+              "d": "1637 Adj"
+            },
+            {
+              "l": "#2 NVDA/AAPL",
+              "v": "$3.5T",
+              "d": "Modern"
+            },
+            {
+              "l": "#3 MICROSOFT",
+              "v": "$3.2T",
+              "d": "Cloud"
+            },
+            {
+              "l": "#4 ARAMCO",
+              "v": "$1.9T",
+              "d": "Energy"
+            }
+          ],
+          "concept": "Apple Bento Grid cards flip in 3D as each trillion-dollar milestone is spoken."
+        }
+      ]
+    },
+    {
+      "id": "CH-08",
+      "name": "Dark Psychology & Brain Quiz",
+      "region": "🌍🇮🇳 Global + India",
+      "lang": "english_global",
+      "theme": "bloomberg_dark",
+      "disclaimer": "Educational behavioral psychology from peer-reviewed studies.",
+      "source": "Source: Kahneman & Tversky Behavioral Economics",
+      "scenes": [
+        {
+          "tag": "COGNITIVE BIAS #19",
+          "headline": "Why a Crossed-Out Price Tricks Your Brain in 0.4 Seconds",
+          "subhead": "The Anchoring Effect explained + a 3-second decoy quiz.",
+          "voiceover": "Why does a 2,000 dollar watch suddenly look cheap next to a 10,000 dollar watch? Your brain is wired for the Anchoring Effect.",
+          "metrics": [
+            {
+              "l": "ANCHOR",
+              "v": "$10,000",
+              "d": "Decoy"
+            },
+            {
+              "l": "TARGET",
+              "v": "$1,999",
+              "d": "+64% Lift"
+            },
+            {
+              "l": "SPEED",
+              "v": "0.4 sec",
+              "d": "System 1"
+            },
+            {
+              "l": "DEFENSE",
+              "v": "Zero-Base",
+              "d": "Rule"
+            }
+          ],
+          "concept": "Always write down your cash valuation before looking at a seller’s anchor price."
+        }
+      ]
+    }
+  ],
+  "todos": [
+    {
+      "id": 1,
+      "text": "Phase 1: Install Play-Protect-Clean PulseForge v2.2 APK",
+      "done": true
+    },
+    {
+      "id": 2,
+      "text": "Phase 2: Unified In-RAM Decrypt -> Execute -> Re-Encrypt Workflow (Zero Plain-Text Factory Code)",
+      "done": true
+    },
+    {
+      "id": 3,
+      "text": "Phase 3: Add GEMINI_API_KEY in GitHub Repo Secrets & App Vault",
+      "done": false
+    },
+    {
+      "id": 4,
+      "text": "Phase 3: Add YT_REFRESH_TOKEN_MAP in GitHub Secrets for Auto-Upload",
+      "done": false
+    },
+    {
+      "id": 5,
+      "text": "Phase 4: Trigger First Live India Share Market & IPO Video + Claude PDF",
+      "done": false
+    },
+    {
+      "id": 6,
+      "text": "Phase 5 (End QoL): Add Biometric Fingerprint Unlock & Home Screen Widget",
+      "done": false
+    },
+    {
+      "id": 7,
+      "text": "Phase 5 (End QoL): Add In-App YouTube Analytics & RPM Revenue Tracker",
+      "done": false
+    },
+    {
+      "id": 8,
+      "text": "Phase 5 (End QoL): Add 1-Tap Viral Theme Pack Store & Telegram PDF Bot Push",
+      "done": false
+    }
+  ]
+}
