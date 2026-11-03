@@ -151,8 +151,49 @@
       </div>
     </section>
 
-    <!-- TAB 1: LIVE GITHUB ACTIONS RUNS -->
+    <!-- TAB 1: LIVE GITHUB ACTIONS RUNS & AUTONOMOUS BRANCH EVOLUTION MANAGER -->
     <section id="tabView-1" class="hidden space-y-4">
+      <!-- Autonomous 2-Month Viral Evolver & Multi-Branch Approval Cockpit -->
+      <div class="card p-4 space-y-3 border-2" style="border-color: var(--acc);">
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="text-[10px] mono uppercase font-bold text-emerald-500">🧬 Autonomous Bi-Monthly Evolution Engine</span>
+            <h3 class="serif text-xl">Staging Branch Approval & 1-Tap Rollback</h3>
+          </div>
+          <span class="text-[10px] mono px-2 py-0.5 rounded sub">main ↔ viral-staging</span>
+        </div>
+        <p class="text-xs opacity-80 leading-relaxed">
+          Every 2 months (or on tap below), Gemini researches new viral YouTube Shorts trends, evolves the UI/UX & script genome on the <strong><code>viral-staging</code></strong> branch, and renders a preview video. Approve to move it to <strong><code>main</code></strong>, or roll back to <strong><code>rollback-previous</code></strong> anytime!
+        </p>
+        <input id="evolveFocusInput" placeholder="Optional trend direction (e.g. 'High-speed neon glass cards')..." class="w-full p-2.5 text-xs sub" />
+        <!-- Multi-Version History Dropdown (All Historical Versions + Live GitHub Branches) -->
+        <div class="p-2.5 sub space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label class="text-[10px] mono font-bold uppercase" style="color: var(--acc);">🕰️ Select Any Historical Version Capsule to Restore:</label>
+            <button onclick="loadAllRepoVersions()" class="text-[10px] mono underline font-semibold">🔄 Fetch Repo Versions</button>
+          </div>
+          <select id="versionHistorySelect" class="w-full p-2 text-xs font-semibold rounded-lg bg-black/10 focus:outline-none">
+            <option value="archive/v15.0-master-ae-sync">v15.0 — Master 4-Widget After-Effects + Candlestick/VIX Dial (Current)</option>
+            <option value="archive/v12.0-claude-editorial">v12.0 — Classic Claude Warm Editorial Paper + Bento Cards</option>
+            <option value="archive/v10.0-bloomberg-terminal">v10.0 — Dark Obsidian & Emerald Bull-Run Terminal</option>
+            <option value="viral-staging">viral-staging — Latest AI Bi-Monthly Candidate Branch</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-1 gap-2">
+          <button onclick="triggerBranchEvolution('evolve_staging')" class="py-2.5 px-3 rounded-xl text-xs font-bold text-white shadow" style="background: var(--acc);">
+            🧬 1. Evolve New Viral Version on `viral-staging` Branch
+          </button>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="triggerBranchEvolution('approve_promote')" class="py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-emerald-600 shadow">
+              ✅ 2. Approve Staging → `main`
+            </button>
+            <button onclick="triggerBranchEvolution('switch_to_version')" class="py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-amber-600 shadow">
+              ⏪ 3. Switch `main` to Selected Version
+            </button>
+          </div>
+        </div>
+      </div>
       <div class="card p-4 space-y-3">
         <div class="flex items-center justify-between">
           <div>
@@ -810,7 +851,49 @@
       toggleFullVideoPlayback();
     }
 
+    async function loadAllRepoVersions() {
+      const repo = document.getElementById('repoInput').value.trim().replace(/^@/, '');
+      let pat = document.getElementById('patInput').value.trim();
+      if (pat.startsWith('Ghp_')) pat = 'ghp_' + pat.slice(4);
+      const sel = document.getElementById('versionHistorySelect');
+      if (!repo || !pat || !sel) return;
+
+      try {
+        const headers = { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${pat}` };
+        const optionsMap = new Map();
+
+        // 1. Load curated manifest descriptions from versions/manifest.json
+        const mRes = await fetch(`https://api.github.com/repos/${repo}/contents/versions/manifest.json`, { headers });
+        if (mRes.ok) {
+          const mJson = await mRes.json();
+          const decoded = JSON.parse(decodeURIComponent(escape(atob(mJson.content.replace(/\s/g, '')))));
+          (decoded.versions || []).forEach(v => {
+            optionsMap.set(v.branch, `${v.tag_name} (${v.created_at || 'Saved'})`);
+          });
+        }
+
+        // 2. Also query all live Git branches starting with archive/ or viral-staging
+        const bRes = await fetch(`https://api.github.com/repos/${repo}/branches?per_page=50`, { headers });
+        if (bRes.ok) {
+          const branches = await bRes.json();
+          branches.forEach(b => {
+            if (b.name !== 'main' && !optionsMap.has(b.name)) {
+              optionsMap.set(b.name, `${b.name} — Self-Contained Branch Capsule`);
+            }
+          });
+        }
+
+        if (optionsMap.size > 0) {
+          sel.innerHTML = Array.from(optionsMap.entries()).map(([val, label]) =>
+            `<option value="${val}">${label}</option>`
+          ).join('');
+          notifyUser(`✓ Loaded ${optionsMap.size} historical versions into dropdown!`);
+        }
+      } catch (e) {}
+    }
+
     async function fetchLiveWorkflowRuns() {
+      loadAllRepoVersions();
       const repo = document.getElementById('repoInput').value.trim().replace(/^@/, '');
       let pat = document.getElementById('patInput').value.trim();
       if (pat.startsWith('Ghp_')) pat = 'ghp_' + pat.slice(4);
@@ -879,6 +962,44 @@
         }
       } catch (e) {
         badge.textContent = '⚠️ Sync Offline';
+      }
+    }
+
+    async function triggerBranchEvolution(mode) {
+      const repo = document.getElementById('repoInput').value.trim().replace(/^@/, '');
+      let pat = document.getElementById('patInput').value.trim();
+      if (pat.startsWith('Ghp_')) pat = 'ghp_' + pat.slice(4);
+      const focus = document.getElementById('evolveFocusInput') ? document.getElementById('evolveFocusInput').value.trim() : '';
+
+      if (!repo || !pat) {
+        notifyUser('Add your GitHub Repo & Token in the Vault tab first!');
+        switchTab(4);
+        return;
+      }
+      const selectedVer = document.getElementById('versionHistorySelect') ? document.getElementById('versionHistorySelect').value : 'archive/v15.0-master-ae-sync';
+      const modeLabels = {
+        evolve_staging: '🧬 Evolving new viral UI/UX on viral-staging branch...',
+        approve_promote: '✅ Promoting viral-staging to main (archiving previous state)...',
+        switch_to_version: `⏪ Switching main to self-contained capsule: ${selectedVer}...`
+      };
+      notifyUser(modeLabels[mode] || 'Triggering version action...');
+      try {
+        const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/viral_auto_evolver.yml/dispatches`, {
+          method: 'POST',
+          headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${pat}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ref: 'main',
+            inputs: { action_mode: mode, target_version_branch: selectedVer, evolution_focus: focus }
+          })
+        });
+        if (res.ok) {
+          notifyUser(`✓ Triggered ${mode}! Refreshing workflow runs...`);
+          setTimeout(fetchLiveWorkflowRuns, 1800);
+        } else {
+          notifyUser(`GitHub HTTP ${res.status}: Push v14.0 to repo first so viral_auto_evolver.yml exists.`);
+        }
+      } catch (e) {
+        notifyUser('Error: ' + e.message);
       }
     }
 

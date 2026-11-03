@@ -1,0 +1,34 @@
+{
+  "active_version": "archive/v15.0-master-ae-sync",
+  "updated_at": "2026-11-03T17:09:36.929873Z",
+  "versions": [
+    {
+      "branch": "archive/v15.0-master-ae-sync",
+      "tag_name": "v15.0 \u2014 Master 4-Widget After-Effects + Candlestick/VIX Dial (Current)",
+      "created_at": "2026-11-03",
+      "theme_mode": "auto",
+      "description": "Full 4-widget choreography (Area Hero, Bull/Bear Split, 6-Day OHLC Candlesticks + VIX Fear Dial, Price Ladder), voice-synced gold spotlight circles, and exact Indian phonetics."
+    },
+    {
+      "branch": "archive/v12.0-claude-editorial",
+      "tag_name": "v12.0 \u2014 Classic Claude Warm Editorial Paper + Bento Cards",
+      "created_at": "2026-11-03",
+      "theme_mode": "editorial_warm",
+      "description": "Warm parchment #FAF8F5 institutional briefing look with Instrument Serif typography and calm studio pacing."
+    },
+    {
+      "branch": "archive/v10.0-bloomberg-terminal",
+      "tag_name": "v10.0 \u2014 Dark Obsidian & Emerald Bull-Run Terminal",
+      "created_at": "2026-11-03",
+      "theme_mode": "bull_emerald",
+      "description": "High-contrast OLED dark terminal aesthetic with neon emerald momentum curves and rapid odometer counters."
+    },
+    {
+      "branch": "viral-staging",
+      "tag_name": "viral-staging \u2014 Latest AI Bi-Monthly Candidate Branch",
+      "created_at": "2026-11-03",
+      "theme_mode": "auto",
+      "description": "Experimental candidate branch where the bi-monthly AI Art Director tests new viral YouTube Shorts hooks and layouts."
+    }
+  ]
+}

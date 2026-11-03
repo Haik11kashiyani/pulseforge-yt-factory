@@ -1,0 +1,200 @@
+name: 3. Autonomous Viral Auto-Evolver & Multi-Version Time Machine
+on:
+  schedule:
+    - cron: '0 6 1 */2 *' # Automatically evolves a new version on viral-staging every 2 months
+  workflow_dispatch:
+    inputs:
+      action_mode:
+        description: 'evolve_staging, approve_promote, or switch_to_version (Switch main to any version)'
+        required: true
+        default: 'evolve_staging'
+      target_version_branch:
+        description: 'Target version branch or preset to switch to (used when action_mode = switch_to_version)'
+        required: false
+        default: 'archive/v15.0-master-ae-sync'
+      evolution_focus:
+        description: 'Optional viral trend direction for Gemini AI Art Director'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  version_time_machine:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Checkout Repository with All Version Branches
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 2. Configure Git Bot Identity
+        run: |
+          git config user.name "PulseForge Version Time-Machine Bot"
+          git config user.email "bot@pulseforge.studio"
+
+      - name: 3. Execute Multi-Version Lifecycle Action
+        env:
+          ACTION_MODE: ${{ github.event.inputs.action_mode || 'evolve_staging' }}
+          TARGET_VERSION: ${{ github.event.inputs.target_version_branch || 'archive/v15.0-master-ae-sync' }}
+          EVOLUTION_FOCUS: ${{ github.event.inputs.evolution_focus || '' }}
+          USER_MASTER_KEY: ${{ secrets.MASTER_DECRYPTION_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set +x
+          TIMESTAMP_TAG="archive/v-$(date -u +%Y%m%d-%H%M%S)"
+
+          # ------------------------------------------------------------------
+          # MODE A: SWITCH MAIN TO ANY SELECTED HISTORICAL VERSION FROM DROPDOWN
+          # ------------------------------------------------------------------
+          if [ "$ACTION_MODE" = "switch_to_version" ] || [ "$ACTION_MODE" = "rollback_previous" ]; then
+            git checkout main
+            # Save current main as a timestamped archive branch first so nothing is ever lost!
+            git branch -f "$TIMESTAMP_TAG" main
+            git push origin "$TIMESTAMP_TAG" --force
+
+            # If the target branch exists on remote, reset main to that exact self-contained branch capsule
+            if git ls-remote --exit-code --heads origin "$TARGET_VERSION" >/dev/null 2>&1; then
+              git fetch origin "$TARGET_VERSION:$TARGET_VERSION"
+              git reset --hard "$TARGET_VERSION"
+              git push origin main --force
+              echo "✓ Switched 'main' to exact historical branch capsule: $TARGET_VERSION"
+            else
+              # If it is one of the built-in preset profiles, update active_version in versions/manifest.json
+              python3 - << 'PY'
+          import json, os
+          m_path = "versions/manifest.json"
+          target = os.environ.get("TARGET_VERSION", "archive/v15.0-master-ae-sync")
+          if os.path.exists(m_path):
+              m = json.load(open(m_path))
+              m["active_version"] = target
+              json.dump(m, open(m_path, "w"), indent=2)
+          PY
+              git add versions/manifest.json
+              git commit -m "⏪ Switched active version profile to $TARGET_VERSION" || true
+              git push origin main --force
+              echo "✓ Switched active version profile to $TARGET_VERSION (and backed up previous state to $TIMESTAMP_TAG)!"
+            fi
+            exit 0
+          fi
+
+          # ------------------------------------------------------------------
+          # MODE B: APPROVE & PROMOTE viral-staging -> main (Archives old main with unique timestamp!)
+          # ------------------------------------------------------------------
+          if [ "$ACTION_MODE" = "approve_promote" ]; then
+            git checkout main
+            git branch -f "$TIMESTAMP_TAG" main
+            git push origin "$TIMESTAMP_TAG" --force
+            git branch -f rollback-previous main
+            git push origin rollback-previous --force
+
+            git fetch origin viral-staging:viral-staging
+            git reset --hard viral-staging
+            git push origin main --force
+            echo "✓ Archived old 'main' to '$TIMESTAMP_TAG' and promoted 'viral-staging' to 'main'!"
+            exit 0
+          fi
+
+          # ------------------------------------------------------------------
+          # MODE C: AUTONOMOUS VIRAL EVOLUTION ON 'viral-staging' + ARCHIVE SNAPSHOT
+          # ------------------------------------------------------------------
+          git checkout main
+          git branch -f "$TIMESTAMP_TAG" main
+          git push origin "$TIMESTAMP_TAG" --force
+
+          git checkout -B viral-staging main
+
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install --quiet google-genai kokoro-onnx soundfile numpy yfinance edge-tts playwright
+          playwright install --with-deps chromium
+
+          RAM_VAULT="/dev/shm/.pf_evolve_${GITHUB_RUN_ID}"
+          mkdir -p "$RAM_VAULT" /dev/shm/pulseforge/output /tmp/deliverables
+          chmod 700 "$RAM_VAULT"
+
+          DECRYPTED=0
+          for CANDIDATE_KEY in "$USER_MASTER_KEY" "PF-2026-AES256-KEY" "PF-2026-ULTRA-VAULT-99X"; do
+            if [ -n "$CANDIDATE_KEY" ]; then
+              if openssl enc -d -aes-256-cbc -pbkdf2 -a -in vault.enc -out "$RAM_VAULT/bundle.tar.gz" -pass "pass:$CANDIDATE_KEY" 2>/dev/null; then
+                ACTIVE_KEY="$CANDIDATE_KEY"
+                DECRYPTED=1
+                break
+              fi
+            fi
+          done
+
+          if [ "$DECRYPTED" -ne 1 ]; then
+            echo "Decryption failed"
+            exit 1
+          fi
+
+          tar -xzf "$RAM_VAULT/bundle.tar.gz" -C "$RAM_VAULT"
+          rm -f "$RAM_VAULT/bundle.tar.gz"
+
+          # Install from the capsule's own requirements.txt if present so dependencies never break
+          if [ -f "$RAM_VAULT/requirements.txt" ]; then
+            pip install --quiet -r "$RAM_VAULT/requirements.txt" || true
+          fi
+
+          # Evolve new Viral Genome
+          python3 "$RAM_VAULT/auto_evolve_viral_engine.py"
+
+          # Smoke-Test Gate: Compile-check & render full preview video
+          python3 -m py_compile "$RAM_VAULT/generate_verified_script.py" "$RAM_VAULT/render_gsap_video_and_pdf.py"
+          python3 "$RAM_VAULT/generate_verified_script.py" --channel "CH-01" --format "9:16"
+          python3 "$RAM_VAULT/render_gsap_video_and_pdf.py"
+
+          # Verify MP4 exists and is non-empty before committing candidate!
+          test -s /dev/shm/pulseforge/output/final_youtube_video.mp4
+
+          cp /dev/shm/pulseforge/output/final_youtube_video.mp4 /tmp/deliverables/
+          cp /dev/shm/pulseforge/output/daily_claude_report.pdf /tmp/deliverables/
+          cp "$RAM_VAULT/viral_evolution_genome.json" /tmp/deliverables/
+
+          # Register this new version in versions/manifest.json
+          python3 - "$TIMESTAMP_TAG" "$RAM_VAULT/viral_evolution_genome.json" << 'PY'
+          import datetime, json, os, sys
+          tag_branch, genome_path = sys.argv[1:3]
+          m_path = "versions/manifest.json"
+          m = json.load(open(m_path)) if os.path.exists(m_path) else {"versions": []}
+          g = json.load(open(genome_path)) if os.path.exists(genome_path) else {}
+          new_entry = {
+              "branch": tag_branch,
+              "tag_name": f"{g.get('generation_id', tag_branch)} — {g.get('trend_summary', 'AI Evolved Style')[:55]}",
+              "created_at": datetime.date.today().isoformat(),
+              "theme_mode": "auto",
+              "description": g.get("trend_summary", "Autonomous evolved capsule")
+          }
+          m["versions"] = [new_entry] + [v for v in m.get("versions", []) if v.get("branch") != tag_branch]
+          json.dump(m, open(m_path, "w"), indent=2)
+          PY
+
+          # Re-encrypt full self-contained capsule (code + requirements.txt + genome)
+          rm -f "$RAM_VAULT/repack.tar.gz"
+          tar -czf "$RAM_VAULT/repack.tar.gz" -C "$RAM_VAULT" .
+          openssl enc -aes-256-cbc -pbkdf2 -salt -a -in "$RAM_VAULT/repack.tar.gz" -out vault.enc -pass "pass:$ACTIVE_KEY"
+
+          git add vault.enc versions/manifest.json
+          git commit -m "🧬 Evolved candidate $TIMESTAMP_TAG (self-contained capsule)" || true
+          git push origin viral-staging --force
+          # Also push an immutable archive branch for this exact candidate!
+          git branch -f "$TIMESTAMP_TAG-evolved" viral-staging
+          git push origin "$TIMESTAMP_TAG-evolved" --force
+
+      - name: 4. Upload Evolved Candidate Preview Video
+        if: ${{ (github.event.inputs.action_mode || 'evolve_staging') == 'evolve_staging' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Staging-Candidate-Viral-Preview-Video
+          path: |
+            /tmp/deliverables/final_youtube_video.mp4
+            /tmp/deliverables/daily_claude_report.pdf
+            /tmp/deliverables/viral_evolution_genome.json
+
+      - name: 5. Guaranteed RAM Shredder Trap
+        if: always()
+        run: |
+          set +x
+          rm -rf /dev/shm/.pf_evolve_* /dev/shm/pulseforge

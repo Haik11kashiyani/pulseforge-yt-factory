@@ -70,6 +70,7 @@ jobs:
 
           tar -xzf "$RAM_VAULT/bundle.tar.gz" -C "$RAM_VAULT"
           rm -f "$RAM_VAULT/bundle.tar.gz"
+          if [ -f "$RAM_VAULT/requirements.txt" ]; then pip install --quiet -r "$RAM_VAULT/requirements.txt" || true; fi
 
           python3 "$RAM_VAULT/generate_verified_script.py"             --channel "${{ github.event.inputs.channel_id || 'CH-01' }}"             --format "${{ github.event.inputs.video_format || '9:16' }}"             --theme "${{ github.event.inputs.visual_theme || 'claude_pdf' }}"             --voice "${{ github.event.inputs.voice_engine || 'kokoro_82m' }}"             --topic "${{ github.event.inputs.custom_topic || '' }}"
 
@@ -79,7 +80,7 @@ jobs:
           cp /dev/shm/pulseforge/output/daily_claude_report.pdf /tmp/deliverables/
           cp /dev/shm/pulseforge/output/render_payload.json /tmp/deliverables/
 
-          tar -czf "$RAM_VAULT/repack.tar.gz" -C "$RAM_VAULT" generate_verified_script.py render_gsap_video_and_pdf.py
+          rm -f "$RAM_VAULT/repack.tar.gz" && tar -czf "$RAM_VAULT/repack.tar.gz" -C "$RAM_VAULT" .
           openssl enc -aes-256-cbc -pbkdf2 -salt -a -in "$RAM_VAULT/repack.tar.gz" -out vault.enc -pass "pass:$ACTIVE_KEY"
 
       - name: 4. Upload Rendered GSAP MP4 Video & PDF to GitHub Artifacts
