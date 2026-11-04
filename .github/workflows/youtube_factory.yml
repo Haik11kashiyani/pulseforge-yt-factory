@@ -83,9 +83,12 @@ jobs:
           cp /dev/shm/pulseforge/output/daily_claude_report.pdf /tmp/deliverables/
           cp /dev/shm/pulseforge/output/render_payload.json /tmp/deliverables/
 
-          rm -f "$RAM_VAULT/repack.tar.gz"
-          tar -czf "$RAM_VAULT/repack.tar.gz" -C "$RAM_VAULT" .
-          openssl enc -aes-256-cbc -pbkdf2 -salt -a -in "$RAM_VAULT/repack.tar.gz" -out vault.enc -pass "pass:$ACTIVE_KEY"
+          rm -rf "$RAM_VAULT/__pycache__"
+          REPACK_TAR="/dev/shm/.pf_repack_${GITHUB_RUN_ID}.tar.gz"
+          rm -f "$REPACK_TAR"
+          tar -czf "$REPACK_TAR" -C "$RAM_VAULT" .
+          openssl enc -aes-256-cbc -pbkdf2 -salt -a -in "$REPACK_TAR" -out vault.enc -pass "pass:$ACTIVE_KEY"
+          rm -f "$REPACK_TAR"
 
       - name: 4. Upload Rendered GSAP MP4 Video, High-CTR Thumbnail, SEO Pack & PDF to Artifacts
         uses: actions/upload-artifact@v4
@@ -102,5 +105,5 @@ jobs:
         if: always()
         run: |
           set +x
-          rm -rf /dev/shm/.pf_ram_* /dev/shm/pulseforge
+          rm -rf /dev/shm/.pf_ram_* /dev/shm/.pf_repack_* /dev/shm/pulseforge
           echo "✓ Wiped temporary RAM vault 100% clean."

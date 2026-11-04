@@ -172,9 +172,12 @@ jobs:
           PY
 
           # Re-encrypt full self-contained capsule (code + requirements.txt + genome)
-          rm -f "$RAM_VAULT/repack.tar.gz"
-          tar -czf "$RAM_VAULT/repack.tar.gz" -C "$RAM_VAULT" .
-          openssl enc -aes-256-cbc -pbkdf2 -salt -a -in "$RAM_VAULT/repack.tar.gz" -out vault.enc -pass "pass:$ACTIVE_KEY"
+          rm -rf "$RAM_VAULT/__pycache__"
+          REPACK_TAR="/dev/shm/.pf_repack_${GITHUB_RUN_ID}.tar.gz"
+          rm -f "$REPACK_TAR"
+          tar -czf "$REPACK_TAR" -C "$RAM_VAULT" .
+          openssl enc -aes-256-cbc -pbkdf2 -salt -a -in "$REPACK_TAR" -out vault.enc -pass "pass:$ACTIVE_KEY"
+          rm -f "$REPACK_TAR"
 
           git add vault.enc versions/manifest.json
           git commit -m "🧬 Evolved candidate $TIMESTAMP_TAG (self-contained capsule)" || true
