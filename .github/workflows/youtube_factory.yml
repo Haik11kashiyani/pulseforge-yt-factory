@@ -83,12 +83,7 @@ jobs:
           cp /dev/shm/pulseforge/output/daily_claude_report.pdf /tmp/deliverables/
           cp /dev/shm/pulseforge/output/render_payload.json /tmp/deliverables/
 
-          rm -rf "$RAM_VAULT/__pycache__"
-          REPACK_TAR="/dev/shm/.pf_repack_${GITHUB_RUN_ID}.tar.gz"
-          rm -f "$REPACK_TAR"
-          tar -czf "$REPACK_TAR" -C "$RAM_VAULT" .
-          openssl enc -aes-256-cbc -pbkdf2 -salt -a -in "$REPACK_TAR" -out vault.enc -pass "pass:$ACTIVE_KEY"
-          rm -f "$REPACK_TAR"
+          echo "✓ All 5 deliverables copied to /tmp/deliverables/ — ready for Artifact Upload!"
 
       - name: 4. Upload Rendered GSAP MP4 Video, High-CTR Thumbnail, SEO Pack & PDF to Artifacts
         uses: actions/upload-artifact@v4
