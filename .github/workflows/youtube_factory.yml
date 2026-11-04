@@ -1,31 +1,32 @@
 name: 2. Unified Zero-Leak Decrypt-Render-ReEncrypt Factory
 on:
   schedule:
-    - cron: '30 10 * * 1-5' # 4:00 PM IST India Post-Market Catch-Up
+    - cron: '30 10 * * 1-5' # 4:00 PM IST Mon-Fri Daily / Expiry Close
+    - cron: '30 5 * * 6'    # 11:00 AM IST Saturday Weekly Scorecard & IPO Watchlist
   workflow_dispatch:
     inputs:
       channel_id:
-        description: 'Channel ID (Focused on CH-01: India Share Market & IPO)'
+        description: 'Channel ID (CH-01: India Share Market, FII/DII & IPO)'
         required: true
         default: 'CH-01'
+      content_mode:
+        description: 'auto_calendar, daily_close, fii_dii_deep_dive, ipo_radar, expiry_thursday, or weekend_wrap'
+        required: true
+        default: 'auto_calendar'
       video_format:
-        description: '9:16 (Shorts) or 16:9 (Full Video)'
+        description: '9:16 (Vertical Short) or 16:9 (Widescreen 2-Column Broadcast)'
         required: true
         default: '9:16'
       visual_theme:
-        description: 'claude_pdf (Warm Editorial) or bloomberg_dark (Dark Terminal)'
+        description: 'auto (Market Mood), claude_pdf, or bloomberg_dark'
         required: true
-        default: 'claude_pdf'
+        default: 'auto'
       voice_engine:
-        description: 'kokoro_82m (3-Voice Blended Human) or gemini_native'
+        description: 'kokoro_82m (Blended Human Voice)'
         required: true
         default: 'kokoro_82m'
-      data_mode:
-        description: 'auto_api (Live NSE/BSE yfinance + Gemini Grounded)'
-        required: true
-        default: 'auto_api'
       custom_topic:
-        description: 'Optional Custom Market Focus (leave blank for Auto Daily Closing Brief)'
+        description: 'Optional Custom Market Focus'
         required: false
         default: ''
 
@@ -72,23 +73,28 @@ jobs:
           rm -f "$RAM_VAULT/bundle.tar.gz"
           if [ -f "$RAM_VAULT/requirements.txt" ]; then pip install --quiet -r "$RAM_VAULT/requirements.txt" || true; fi
 
-          python3 "$RAM_VAULT/generate_verified_script.py"             --channel "${{ github.event.inputs.channel_id || 'CH-01' }}"             --format "${{ github.event.inputs.video_format || '9:16' }}"             --theme "${{ github.event.inputs.visual_theme || 'claude_pdf' }}"             --voice "${{ github.event.inputs.voice_engine || 'kokoro_82m' }}"             --topic "${{ github.event.inputs.custom_topic || '' }}"
+          python3 "$RAM_VAULT/generate_verified_script.py"             --channel "${{ github.event.inputs.channel_id || 'CH-01' }}"             --content_mode "${{ github.event.inputs.content_mode || 'auto_calendar' }}"             --format "${{ github.event.inputs.video_format || '9:16' }}"             --theme "${{ github.event.inputs.visual_theme || 'auto' }}"             --voice "${{ github.event.inputs.voice_engine || 'kokoro_82m' }}"             --topic "${{ github.event.inputs.custom_topic || '' }}"
 
           python3 "$RAM_VAULT/render_gsap_video_and_pdf.py"
 
           cp /dev/shm/pulseforge/output/final_youtube_video.mp4 /tmp/deliverables/
+          cp /dev/shm/pulseforge/output/thumbnail.jpg /tmp/deliverables/
+          cp /dev/shm/pulseforge/output/seo_metadata.json /tmp/deliverables/
           cp /dev/shm/pulseforge/output/daily_claude_report.pdf /tmp/deliverables/
           cp /dev/shm/pulseforge/output/render_payload.json /tmp/deliverables/
 
-          rm -f "$RAM_VAULT/repack.tar.gz" && tar -czf "$RAM_VAULT/repack.tar.gz" -C "$RAM_VAULT" .
+          rm -f "$RAM_VAULT/repack.tar.gz"
+          tar -czf "$RAM_VAULT/repack.tar.gz" -C "$RAM_VAULT" .
           openssl enc -aes-256-cbc -pbkdf2 -salt -a -in "$RAM_VAULT/repack.tar.gz" -out vault.enc -pass "pass:$ACTIVE_KEY"
 
-      - name: 4. Upload Rendered GSAP MP4 Video & PDF to GitHub Artifacts
+      - name: 4. Upload Rendered GSAP MP4 Video, High-CTR Thumbnail, SEO Pack & PDF to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: PulseForge-Rendered-Video-and-PDF
           path: |
             /tmp/deliverables/final_youtube_video.mp4
+            /tmp/deliverables/thumbnail.jpg
+            /tmp/deliverables/seo_metadata.json
             /tmp/deliverables/daily_claude_report.pdf
             /tmp/deliverables/render_payload.json
 
