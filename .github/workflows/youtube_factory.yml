@@ -80,6 +80,7 @@ jobs:
           cp /dev/shm/pulseforge/output/final_youtube_video.mp4 /tmp/deliverables/
           cp /dev/shm/pulseforge/output/thumbnail.jpg /tmp/deliverables/
           cp /dev/shm/pulseforge/output/seo_metadata.json /tmp/deliverables/
+          cp /dev/shm/pulseforge/output/community_posts.txt /tmp/deliverables/
           cp /dev/shm/pulseforge/output/daily_claude_report.pdf /tmp/deliverables/
           cp /dev/shm/pulseforge/output/render_payload.json /tmp/deliverables/
 
@@ -93,6 +94,7 @@ jobs:
             /tmp/deliverables/final_youtube_video.mp4
             /tmp/deliverables/thumbnail.jpg
             /tmp/deliverables/seo_metadata.json
+            /tmp/deliverables/community_posts.txt
             /tmp/deliverables/daily_claude_report.pdf
             /tmp/deliverables/render_payload.json
 
@@ -100,5 +102,5 @@ jobs:
         if: always()
         run: |
           set +x
-          rm -rf /dev/shm/.pf_ram_* /dev/shm/.pf_repack_* /dev/shm/pulseforge
+          rm -rf /dev/shm/.pf_ram_* /dev/shm/pulseforge
           echo "✓ Wiped temporary RAM vault 100% clean."

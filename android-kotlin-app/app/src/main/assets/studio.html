@@ -369,13 +369,15 @@
     ];
 
     let TODOS = [
-      { id:1, text:'Phase 1: Install Play-Protect-Clean PulseForge v3.0 APK', done:true },
-      { id:2, text:'Phase 2: Unified In-RAM Decrypt -> Execute -> Re-Encrypt Workflow (Zero Plain-Text Code)', done:true },
-      { id:3, text:'Phase 3: Real Gemini 2.5 Neural Audio TTS + Multi-Scene Viral Reference Cloner', done:true },
-      { id:4, text:'Phase 4: Trigger First Live Video + Claude PDF Render on GitHub Actions', done:false },
-      { id:5, text:'Phase 5 (End QoL): Add Biometric Fingerprint Unlock & Home Screen Widget', done:false },
-      { id:6, text:'Phase 5 (End QoL): Add In-App YouTube Analytics & RPM Revenue Tracker', done:false },
-      { id:7, text:'Phase 5 (End QoL): Add 1-Tap Viral Theme Pack Store & Telegram PDF Bot Push', done:false }
+      { id:1, text:'CH-01 (Done): Split-Head StyleTTS2 ElevenLabs Baritone + Direct IPA Indian Stock Phonetics', done:true },
+      { id:2, text:'CH-01 (Done): 5-Mode Smart Calendar Router (Daily Close, FII/DII, IPO Radar, Expiry, Weekend Wrap)', done:true },
+      { id:3, text:'CH-01 (Done): Media Brand Identity (0.0s Sonic Chime, Broadcast TV Bug, Edition #, Accountability Pill)', done:true },
+      { id:4, text:'CH-01 (Done): Community Flywheel (Scene 3 Trader Q&A Pill, Scene 4 Poll Bar, community_posts.txt Kit)', done:true },
+      { id:5, text:'Universal Brand & Community Rollout -> CH-02 (Global & US Wall Street Catch-Up)', done:false },
+      { id:6, text:'Universal Brand & Community Rollout -> CH-03 & CH-04 (WhatsApp India & iMessage Story Channels)', done:false },
+      { id:7, text:'Universal Brand & Community Rollout -> CH-05 & CH-06 (Cricket & Football Stat Showdowns)', done:false },
+      { id:8, text:'Universal Brand & Community Rollout -> CH-07 to CH-15 (Wealth, Psychology & Remaining Channels)', done:false },
+      { id:9, text:'Phase 5 (End QoL): Automated Telegram / WhatsApp Bot API Push & YouTube Community Auto-Poster', done:false }
     ];
 
     let curCh = 0; // Focused 100% on Channel #1: India Share Market & IPO Brief
@@ -859,7 +861,7 @@
       if (!repo || !pat || !sel) return;
 
       try {
-        const headers = { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${pat}` };
+        const headers = { 'Accept': 'application/vnd.github+json', 'Authorization': `Bearer ${pat}` };
         const optionsMap = new Map();
 
         // 1. Load curated manifest descriptions from versions/manifest.json
@@ -905,7 +907,7 @@
       box.innerHTML = '<div class="p-3 sub">⏳ Fetching live workflow runs from GitHub...</div>';
       try {
         const res = await fetch(`https://api.github.com/repos/${repo}/actions/runs?per_page=8`, {
-          headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${pat}` }
+          headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `Bearer ${pat}` }
         });
         const data = await res.json();
         if (!data.workflow_runs || data.workflow_runs.length === 0) {
@@ -941,7 +943,7 @@
       const badge = document.getElementById('cloudSyncBadge');
       badge.textContent = '⏳ Syncing...';
       try {
-        const headers = { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${pat}`, 'Content-Type': 'application/json' };
+        const headers = { 'Accept': 'application/vnd.github+json', 'Authorization': `Bearer ${pat}`, 'Content-Type': 'application/json' };
         const syncState = { updated_at: new Date().toISOString(), channels: CHANNELS_DATA, todos: TODOS };
         const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(syncState, null, 2))));
 
@@ -986,7 +988,7 @@
       try {
         const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/viral_auto_evolver.yml/dispatches`, {
           method: 'POST',
-          headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${pat}`, 'Content-Type': 'application/json' },
+          headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `Bearer ${pat}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ref: 'main',
             inputs: { action_mode: mode, target_version_branch: selectedVer, evolution_focus: focus }
@@ -1021,7 +1023,7 @@
       try {
         const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/youtube_factory.yml/dispatches`, {
           method: 'POST',
-          headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${pat}`, 'Content-Type': 'application/json' },
+          headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `Bearer ${pat}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ref: 'main',
             inputs: { channel_id: ch.id, video_format: fmt, visual_theme: th, voice_engine: 'gemini_native', data_mode: 'auto_api', custom_topic: top }
